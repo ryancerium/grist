@@ -40,12 +40,14 @@ impl Cardinal for RECT {
             y: self.bottom,
         }
     }
+
     fn east(&self) -> POINT {
         POINT {
             x: self.right,
             y: self.center().y,
         }
     }
+
     fn west(&self) -> POINT {
         POINT {
             x: self.left,

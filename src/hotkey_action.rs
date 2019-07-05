@@ -5,6 +5,7 @@ use typenum::U256;
 
 pub type Action = fn() -> ();
 
+#[derive(Clone)]
 pub struct HotkeyAction {
     pub action: Action,
     bitarray: BitArray<u32, U256>,

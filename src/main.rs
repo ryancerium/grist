@@ -11,14 +11,14 @@ use std::sync::Mutex;
 use typenum::U256;
 use winapi::ctypes::c_int;
 use winapi::shared::minwindef::{BOOL, LPARAM, LRESULT, UINT, WPARAM};
-use winapi::shared::windef::{HWND, RECT};
+use winapi::shared::windef::{HDC, HMONITOR, HWND, LPRECT, RECT};
 use winapi::um::dwmapi::{DwmGetWindowAttribute, DWMWA_EXTENDED_FRAME_BOUNDS};
 use winapi::um::libloaderapi::GetModuleHandleW;
 use winapi::um::winuser::{
-    CallNextHookEx, DispatchMessageW, GetForegroundWindow, GetMessageW, GetMonitorInfoW,
-    GetWindowRect, MonitorFromWindow, SetCursorPos, SetWindowPos, SetWindowsHookExW, ShowWindow,
-    TranslateMessage, KBDLLHOOKSTRUCT, MONITORINFO, MONITOR_DEFAULTTOPRIMARY, MSG, SWP_NOZORDER,
-    SW_RESTORE, WM_KEYDOWN, WM_SYSKEYDOWN,
+    CallNextHookEx, DispatchMessageW, EnumDisplayMonitors, GetForegroundWindow, GetMessageW,
+    GetMonitorInfoW, GetWindowRect, MonitorFromWindow, SetCursorPos, SetWindowPos,
+    SetWindowsHookExW, ShowWindow, TranslateMessage, KBDLLHOOKSTRUCT, MONITORINFO,
+    MONITOR_DEFAULTTOPRIMARY, MSG, SWP_NOZORDER, SW_RESTORE, WM_KEYDOWN, WM_SYSKEYDOWN,
 };
 
 lazy_static! {
@@ -58,6 +58,83 @@ unsafe extern "system" fn low_level_keyboard_proc(
         }
         None => CallNextHookEx(std::ptr::null_mut(), n_code, w_param, l_param),
     }
+}
+
+fn init_monitor_info() -> MONITORINFO {
+    unsafe {
+        let mut monitor_info: MONITORINFO = std::mem::zeroed();
+        monitor_info.cbSize = std::mem::size_of::<MONITORINFO>() as u32;
+        monitor_info
+    }
+}
+
+unsafe extern "system" fn enum_display_monitors_callback(
+    h_monitor: HMONITOR,
+    _hdc: HDC,
+    _rect: LPRECT,
+    _dw_data: LPARAM,
+) -> BOOL {
+    let mut monitor_info = init_monitor_info();
+    GetMonitorInfoW(h_monitor, &mut monitor_info);
+    let monitors = &mut *(_dw_data as *mut Vec<MONITORINFO>);
+    monitors.push(monitor_info);
+    return 1;
+}
+
+fn move_to_adjacent_monitor(increment: i32) {
+    let mut monitors: Vec<MONITORINFO> = Vec::new();
+    unsafe {
+        EnumDisplayMonitors(
+            std::ptr::null_mut(),
+            std::ptr::null(),
+            Some(enum_display_monitors_callback),
+            &mut monitors as *mut Vec<MONITORINFO> as isize,
+        );
+    }
+
+    monitors.sort_by(|lhs, rhs| match lhs.rcWork.left == rhs.rcWork.left {
+        true => lhs.rcWork.top.cmp(&rhs.rcWork.top),
+        false => lhs.rcWork.left.cmp(&rhs.rcWork.left),
+    });
+
+    unsafe {
+        let foreground_window = GetForegroundWindow();
+        let mut monitor_info = init_monitor_info();
+        GetMonitorInfoW(
+            MonitorFromWindow(foreground_window, MONITOR_DEFAULTTOPRIMARY),
+            &mut monitor_info,
+        );
+
+        let mut i = monitors
+            .iter()
+            .position(|&m| {
+                m.rcWork.left == monitor_info.rcWork.left
+                    && m.rcWork.right == monitor_info.rcWork.right
+                    && m.rcWork.top == monitor_info.rcWork.top
+                    && m.rcWork.bottom == monitor_info.rcWork.bottom
+            })
+            .unwrap() as i32
+            + increment;
+
+        if i == -1 {
+            i = monitors.len() as i32 - 1;
+        } else if i == monitors.len() as i32 {
+            i = 0;
+        }
+
+        let work_area = monitors[i as usize].rcWork;
+        let window_pos = make_rect(&work_area.top_left(), &work_area.center());
+        set_window_rect(foreground_window, &window_pos, 0);
+        SetCursorPos(window_pos.center().x, window_pos.center().y);
+    }
+}
+
+fn move_to_next_monitor() {
+    move_to_adjacent_monitor(1);
+}
+
+fn move_to_prev_monitor() {
+    move_to_adjacent_monitor(-1);
 }
 
 fn calculate_margin(hwnd: HWND) -> RECT {
@@ -103,13 +180,11 @@ type WorkAreaToWindowPosFn = Fn(&RECT) -> RECT;
 fn set_window_pos_action(workarea_to_window_pos: &WorkAreaToWindowPosFn) {
     unsafe {
         let foreground_window = GetForegroundWindow();
-        let mut monitor_info: MONITORINFO = std::mem::zeroed();
-        monitor_info.cbSize = std::mem::size_of::<MONITORINFO>() as u32;
+        let mut monitor_info = init_monitor_info();
         GetMonitorInfoW(
             MonitorFromWindow(foreground_window, MONITOR_DEFAULTTOPRIMARY),
             &mut monitor_info,
         );
-        //println!("work_area: {}, {}", monitor_info.rcWork.left);
         let window_pos = workarea_to_window_pos(&monitor_info.rcWork);
         set_window_rect(foreground_window, &window_pos, SWP_NOZORDER);
         SetCursorPos(window_pos.center().x, window_pos.center().y);
@@ -132,11 +207,11 @@ fn bottom_right() {
     set_window_pos_action(&|r: &RECT| make_rect(&r.bottom_right(), &r.center()));
 }
 
-fn left() {
+fn west() {
     set_window_pos_action(&|r: &RECT| make_rect(&r.top_left(), &r.south()));
 }
 
-fn right() {
+fn east() {
     set_window_pos_action(&|r: &RECT| make_rect(&r.top_right(), &r.south()));
 }
 
@@ -149,25 +224,21 @@ fn south() {
 }
 
 fn set_actions() {
-    let mut a = ACTIONS.lock().unwrap();
+    let mut actions = ACTIONS.lock().unwrap();
 
-    a.push(HotkeyAction::new(top_left, &[VK::LeftWindows, VK::Numpad7]));
-    a.push(HotkeyAction::new(
-        top_right,
-        &[VK::LeftWindows, VK::Numpad9],
-    ));
-    a.push(HotkeyAction::new(
-        bottom_left,
-        &[VK::LeftWindows, VK::Numpad1],
-    ));
-    a.push(HotkeyAction::new(
-        bottom_right,
-        &[VK::LeftWindows, VK::Numpad3],
-    ));
-    a.push(HotkeyAction::new(left, &[VK::LeftWindows, VK::Numpad4]));
-    a.push(HotkeyAction::new(right, &[VK::LeftWindows, VK::Numpad6]));
-    a.push(HotkeyAction::new(north, &[VK::LeftWindows, VK::Numpad8]));
-    a.push(HotkeyAction::new(south, &[VK::LeftWindows, VK::Numpad2]));
+    actions.extend_from_slice(&[
+        HotkeyAction::new(top_left, &[VK::LeftWindows, VK::Numpad7]),
+        HotkeyAction::new(top_left, &[VK::LeftWindows, VK::Numpad7]),
+        HotkeyAction::new(top_right, &[VK::LeftWindows, VK::Numpad9]),
+        HotkeyAction::new(bottom_left, &[VK::LeftWindows, VK::Numpad1]),
+        HotkeyAction::new(bottom_right, &[VK::LeftWindows, VK::Numpad3]),
+        HotkeyAction::new(west, &[VK::LeftWindows, VK::Numpad4]),
+        HotkeyAction::new(east, &[VK::LeftWindows, VK::Numpad6]),
+        HotkeyAction::new(north, &[VK::LeftWindows, VK::Numpad8]),
+        HotkeyAction::new(south, &[VK::LeftWindows, VK::Numpad2]),
+        HotkeyAction::new(move_to_next_monitor, &[VK::LeftWindows, VK::Numpad5]),
+        HotkeyAction::new(move_to_prev_monitor, &[VK::LeftWindows, VK::Clear]),
+    ]);
 }
 
 fn main() {
