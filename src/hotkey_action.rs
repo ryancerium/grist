@@ -1,3 +1,4 @@
+extern crate num;
 extern crate typenum;
 
 use bitarray::BitArray;
@@ -22,7 +23,7 @@ fn keys_as_bit_array(keys: &[VK]) -> BitArray<u32, U256> {
 impl HotkeyAction {
     pub fn new(action: Action, keys: &[VK]) -> HotkeyAction {
         HotkeyAction {
-            action: action,
+            action,
             bitarray: keys_as_bit_array(keys),
         }
     }
@@ -32,7 +33,7 @@ impl HotkeyAction {
     }
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, FromPrimitive)]
 #[allow(non_camel_case_types, dead_code)]
 /// <summary>
 /// Enumeration for virtual keys.

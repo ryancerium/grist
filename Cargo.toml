@@ -11,8 +11,12 @@ default-target = "x86_64-pc-windows-msvc"
 version = "0.3.7"
 default-features = false
 features = [
+    "impl-debug",
+    "impl-default",
     "dwmapi",
+    "shellapi",
     "winbase",
+    "wincon",
     "windef",
     "winuser",
 ]
