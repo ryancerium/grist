@@ -34,7 +34,7 @@ impl HotkeyAction {
 }
 
 #[derive(Copy, Clone, Debug, FromPrimitive)]
-#[allow(non_camel_case_types, dead_code)]
+#[allow(non_camel_case_types)]
 /// <summary>
 /// Enumeration for virtual keys.
 /// </summary>
