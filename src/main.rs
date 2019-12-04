@@ -19,7 +19,7 @@ extern crate lazy_static;
 extern crate num_derive;
 use hotkey_action::{HotkeyAction, VK};
 use std::sync::Mutex;
-use winapi::um::winuser::{DispatchMessageW, GetMessageW, TranslateMessage, MSG, WM_COMMAND};
+use winapi::um::winuser::{DispatchMessageW, GetMessageW, TranslateMessage, MSG};
 
 lazy_static! {
     static ref ACTIONS: Mutex<Vec<HotkeyAction>> = Mutex::default();
@@ -51,21 +51,12 @@ fn main() {
         *ACTIONS.lock().unwrap() = create_actions();
     }
 
-    let mut app = ui::create();
+    let hwnd = ui::create();
     let mut msg = MSG::default();
     println!("Press any hotkey...");
 
     unsafe {
-        while GetMessageW(&mut msg, app.hwnd, 0, 0) > 0 {
-            // Manually check for a keyboard hook reload request because... thread safety
-            if msg.hwnd == app.hwnd
-                && msg.message == WM_COMMAND
-                && msg.wParam == ui::MENU_RELOAD
-                && msg.lParam == 0
-            {
-                app.rehook_keyboard();
-            }
-
+        while GetMessageW(&mut msg, hwnd, 0, 0) > 0 {
             TranslateMessage(&msg);
             DispatchMessageW(&msg);
         }

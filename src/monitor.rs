@@ -6,9 +6,22 @@ use winapi::shared::minwindef::{BOOL, LPARAM};
 use winapi::shared::windef::{HDC, HMONITOR, LPRECT, RECT};
 use winapi::um::winuser::*;
 
-enum Increment {
-    Left = -1,
-    Right = 1,
+enum Direction {
+    Left,
+    Right,
+}
+
+impl Direction {
+    fn apply(&self, i: usize, len: usize) -> usize {
+        if len < 2 {
+            0
+        } else {
+            match self {
+                Direction::Left => return if i == 0 { len - 1 } else { i - 1 },
+                Direction::Right => return if i == (len - 1) { 0 } else { i + 1 },
+            }
+        }
+    }
 }
 
 pub fn add_actions(actions: &mut Vec<HotkeyAction>) {
@@ -27,11 +40,11 @@ pub fn init_monitor_info() -> MONITORINFO {
 }
 
 fn move_to_next_monitor() {
-    move_to_adjacent_monitor(Increment::Right);
+    move_to_adjacent_monitor(Direction::Right);
 }
 
 fn move_to_prev_monitor() {
-    move_to_adjacent_monitor(Increment::Left);
+    move_to_adjacent_monitor(Direction::Left);
 }
 
 unsafe extern "system" fn enum_display_monitors_callback(
@@ -47,7 +60,7 @@ unsafe extern "system" fn enum_display_monitors_callback(
     1
 }
 
-fn move_to_adjacent_monitor(increment: Increment) {
+fn move_to_adjacent_monitor(direction: Direction) {
     let mut monitors: Vec<MONITORINFO> = Vec::new();
     unsafe {
         CHECK_BOOL!(EnumDisplayMonitors(
@@ -71,26 +84,20 @@ fn move_to_adjacent_monitor(increment: Increment) {
             &mut monitor_info,
         ));
 
-        let mut i = monitors
-            .iter()
-            .position(|&m| {
-                m.rcWork.left == monitor_info.rcWork.left
-                    && m.rcWork.right == monitor_info.rcWork.right
-                    && m.rcWork.top == monitor_info.rcWork.top
-                    && m.rcWork.bottom == monitor_info.rcWork.bottom
-            })
-            .unwrap() as i32
-            + increment as i32;
+        let i = direction.apply(
+            monitors
+                .iter()
+                .position(|&m| {
+                    m.rcWork.left == monitor_info.rcWork.left
+                        && m.rcWork.right == monitor_info.rcWork.right
+                        && m.rcWork.top == monitor_info.rcWork.top
+                        && m.rcWork.bottom == monitor_info.rcWork.bottom
+                })
+                .unwrap(),
+            monitors.len(),
+        );
 
-        i = if i < 0 {
-            monitors.len() as i32 - 1
-        } else if i >= monitors.len() as i32 {
-            0
-        } else {
-            i
-        };
-
-        let work_area = monitors[i as usize].rcWork;
+        let work_area = monitors[i].rcWork;
         let window_pos = RECT::from_points(work_area.top_left(), work_area.center());
         set_window_rect(foreground_window, &window_pos, 0);
         CHECK_BOOL!(SetCursorPos(window_pos.center().x, window_pos.center().y));
