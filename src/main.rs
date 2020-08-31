@@ -1,22 +1,27 @@
 // #![windows_subsystem = "windows"]
 // Uncomment the above line to make a windowed app instead of a console app
 
-pub mod cardinal;
-pub mod hotkey_action;
-pub mod keyboard;
-pub mod timeout_action;
-
+// Declare the application's modules
+mod cardinal;
+mod hotkey_action;
+mod keyboard;
 mod monitor;
+mod msg;
+mod timeout_action;
 mod ui;
 mod window_actions;
 
+// Declare the application's macros
 #[macro_use]
-pub mod macros;
+mod macros;
 
+// Import external crate macros
 #[macro_use]
 extern crate lazy_static;
 #[macro_use]
 extern crate num_derive;
+
+// Import crate members
 use hotkey_action::{HotkeyAction, VK};
 use std::sync::Mutex;
 use winapi::um::winuser::{DispatchMessageW, GetMessageW, TranslateMessage, MSG};
