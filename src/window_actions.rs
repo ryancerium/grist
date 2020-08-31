@@ -93,11 +93,7 @@ fn set_window_pos_action(workarea_to_window_pos: &WorkAreaToWindowPosFn) {
             &mut monitor_info,
         ));
         let window_pos = workarea_to_window_pos(&monitor_info.rcWork);
-        CHECK_BOOL!(set_window_rect(
-            foreground_window,
-            &window_pos,
-            SWP_NOZORDER
-        ));
+        CHECK_BOOL!(set_window_rect(foreground_window, &window_pos, SWP_NOZORDER));
         CHECK_BOOL!(SetCursorPos(window_pos.center().x, window_pos.center().y));
     }
 }

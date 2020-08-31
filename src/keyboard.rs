@@ -12,15 +12,10 @@ use winapi::shared::minwindef::{LPARAM, LRESULT, UINT, WPARAM};
 use winapi::um::winuser::*;
 
 lazy_static! {
-    static ref PRESSED_KEYS: Mutex<BitArray<u32, U256>> =
-        Mutex::new(BitArray::<u32, U256>::from_elem(false));
+    static ref PRESSED_KEYS: Mutex<BitArray<u32, U256>> = Mutex::new(BitArray::<u32, U256>::from_elem(false));
 }
 
-pub unsafe extern "system" fn low_level_keyboard_proc(
-    n_code: c_int,
-    wparam: WPARAM,
-    lparam: LPARAM,
-) -> LRESULT {
+pub unsafe extern "system" fn low_level_keyboard_proc(n_code: c_int, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
     let _timeout_warning = TimeoutAction::new(std::time::Duration::from_millis(300), || {
         println!("Timer elapsed");
     });

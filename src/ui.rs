@@ -109,18 +109,10 @@ fn on_notification_icon(hwnd: HWND, wparam: WPARAM, lparam: LPARAM) -> () {
     };
 }
 
-unsafe extern "system" fn wndproc(
-    hwnd: HWND,
-    msg: UINT,
-    wparam: WPARAM,
-    lparam: LPARAM,
-) -> LRESULT {
+unsafe extern "system" fn wndproc(hwnd: HWND, msg: UINT, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
     match msg {
         WM_CREATE => {
-            CHECK_BOOL!(WTSRegisterSessionNotification(
-                hwnd,
-                NOTIFY_FOR_THIS_SESSION
-            ));
+            CHECK_BOOL!(WTSRegisterSessionNotification(hwnd, NOTIFY_FOR_THIS_SESSION));
             let nid = create_notification_icon(hwnd);
             let mut grist_app = Box::new(GristApp {
                 nid,
@@ -149,16 +141,10 @@ unsafe extern "system" fn wndproc(
         },
         WM_WTSSESSION_CHANGE => {
             match wparam {
-                WTS_CONSOLE_CONNECT => {
-                    println!("{:>30} WTS_CONSOLE_CONNECT", "WM_WTSSESSION_CHANGE")
-                }
-                WTS_CONSOLE_DISCONNECT => {
-                    println!("{:>30} WTS_CONSOLE_DISCONNECT", "WM_WTSSESSION_CHANGE")
-                }
+                WTS_CONSOLE_CONNECT => println!("{:>30} WTS_CONSOLE_CONNECT", "WM_WTSSESSION_CHANGE"),
+                WTS_CONSOLE_DISCONNECT => println!("{:>30} WTS_CONSOLE_DISCONNECT", "WM_WTSSESSION_CHANGE"),
                 WTS_REMOTE_CONNECT => println!("{:>30} WTS_REMOTE_CONNECT", "WM_WTSSESSION_CHANGE"),
-                WTS_REMOTE_DISCONNECT => {
-                    println!("{:>30} WTS_REMOTE_DISCONNECT", "WM_WTSSESSION_CHANGE")
-                }
+                WTS_REMOTE_DISCONNECT => println!("{:>30} WTS_REMOTE_DISCONNECT", "WM_WTSSESSION_CHANGE"),
                 WTS_SESSION_LOGON => {
                     grist_app_from_hwnd(&hwnd).hook_keyboard();
                     println!("{:>30} WTS_SESSION_LOGON", "WM_WTSSESSION_CHANGE")
@@ -172,28 +158,16 @@ unsafe extern "system" fn wndproc(
                     grist_app_from_hwnd(&hwnd).hook_keyboard();
                     println!("{:>30} WTS_SESSION_UNLOCK", "WM_WTSSESSION_CHANGE")
                 }
-                WTS_SESSION_REMOTE_CONTROL => {
-                    println!("{:>30} WTS_SESSION_REMOTE_CONTROL", "WM_WTSSESSION_CHANGE")
-                }
+                WTS_SESSION_REMOTE_CONTROL => println!("{:>30} WTS_SESSION_REMOTE_CONTROL", "WM_WTSSESSION_CHANGE"),
                 WTS_SESSION_CREATE => println!("{:>30} WTS_SESSION_CREATE", "WM_WTSSESSION_CHANGE"),
-                WTS_SESSION_TERMINATE => {
-                    println!("{:>30} WTS_SESSION_TERMINATE", "WM_WTSSESSION_CHANGE")
-                }
+                WTS_SESSION_TERMINATE => println!("{:>30} WTS_SESSION_TERMINATE", "WM_WTSSESSION_CHANGE"),
                 _ => println!("{:>30} WTS Unknown wParam", "WM_WTSSESSION_CHANGE"),
             }
             ()
         }
         _ => {
-            if msg != WM_ENTERIDLE
-                && lparam != WM_MOUSEMOVE as isize
-                && *DEBUG.lock().unwrap() == true
-            {
-                println!(
-                    "{:>30} w: 0x{:X} l: 0x{:X}",
-                    msg::msg_to_string(msg),
-                    wparam,
-                    lparam
-                );
+            if msg != WM_ENTERIDLE && lparam != WM_MOUSEMOVE as isize && *DEBUG.lock().unwrap() == true {
+                println!("{:>30} w: 0x{:X} l: 0x{:X}", msg::msg_to_string(msg), wparam, lparam);
             }
         }
     };
