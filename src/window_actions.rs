@@ -3,6 +3,7 @@ use crate::hotkey_action::{HotkeyAction, VK};
 use crate::monitor;
 use crate::CHECK_BOOL;
 use crate::CHECK_HRESULT;
+use crate::CHECK_HWND;
 use winapi::shared::minwindef::BOOL;
 use winapi::shared::windef::{HWND, RECT};
 use winapi::shared::winerror::S_OK;
@@ -34,6 +35,7 @@ pub fn add_actions(actions: &mut Vec<HotkeyAction>) {
         HotkeyAction::new(south, &[VK::LeftWindows, VK::N6]),
         HotkeyAction::new(maximize, &[VK::LeftWindows, VK::Up]),
         HotkeyAction::new(minimize, &[VK::LeftWindows, VK::Down]),
+        HotkeyAction::new(clear_topmost, &[VK::LeftWindows, VK::LeftShift, VK::Z]),
     ]);
 }
 
@@ -44,12 +46,10 @@ pub fn set_window_rect(hwnd: HWND, position: &RECT, flags: u32) -> BOOL {
         chars.resize(text_length as usize, 0);
         GetWindowTextW(hwnd, chars.as_mut_ptr(), chars.len() as i32);
         let title = OsString::from_wide(chars.as_slice());
-        println!("Setting '{}'", title.into_string().unwrap());
-        println!("    ShowWindow()...");
+        println!("Positioning '{}'", title.into_string().unwrap());
         ShowWindow(hwnd, SW_RESTORE);
 
         let margin = calculate_margin(hwnd);
-        println!("    SetWindowPos()...");
         SetWindowPos(
             hwnd,
             std::ptr::null_mut(),
@@ -67,9 +67,7 @@ fn calculate_margin(hwnd: HWND) -> RECT {
     let mut extended_frame_bounds = RECT::default();
 
     unsafe {
-        println!("    GetWindowRect()...");
         CHECK_BOOL!(GetWindowRect(hwnd, &mut window_rect));
-        println!("    DwmGetWindowAttribute()...");
         CHECK_HRESULT!(DwmGetWindowAttribute(
             hwnd,
             DWMWA_EXTENDED_FRAME_BOUNDS,
@@ -88,7 +86,7 @@ fn calculate_margin(hwnd: HWND) -> RECT {
 
 fn set_window_pos_action(workarea_to_window_pos: &WorkAreaToWindowPosFn) {
     unsafe {
-        let foreground_window = GetForegroundWindow();
+        let foreground_window = CHECK_HWND!(GetForegroundWindow());
         let mut monitor_info = monitor::init_monitor_info();
         CHECK_BOOL!(GetMonitorInfoW(
             MonitorFromWindow(foreground_window, MONITOR_DEFAULTTOPRIMARY),
@@ -138,14 +136,29 @@ fn south() {
 
 fn maximize() {
     unsafe {
-        let foreground_window = GetForegroundWindow();
+        let foreground_window = CHECK_HWND!(GetForegroundWindow());
         ShowWindowAsync(foreground_window, SW_MAXIMIZE);
     }
 }
 
 fn minimize() {
     unsafe {
-        let foreground_window = GetForegroundWindow();
+        let foreground_window = CHECK_HWND!(GetForegroundWindow());
         ShowWindowAsync(foreground_window, SW_MINIMIZE);
+    }
+}
+
+pub fn clear_topmost() -> () {
+    unsafe {
+        let foreground_window = CHECK_HWND!(GetForegroundWindow());
+        CHECK_BOOL!(SetWindowPos(
+            foreground_window,
+            HWND_NOTOPMOST,
+            0,
+            0,
+            0,
+            0,
+            SWP_NOMOVE | SWP_NOSIZE
+        ));
     }
 }

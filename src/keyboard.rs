@@ -1,16 +1,14 @@
-use crate::hotkey_action;
+//use crate::hotkey_action;
 use crate::timeout_action;
 use crate::ACTIONS;
-use crate::DEBUG;
+//use crate::DEBUG;
 use bitarray::BitArray;
-use hotkey_action::VK;
+//use hotkey_action::VK;
 use std::sync::Mutex;
 use timeout_action::TimeoutAction;
 use typenum::U256;
 use winapi::ctypes::c_int;
 use winapi::shared::minwindef::{LPARAM, LRESULT, UINT, WPARAM};
-use winapi::shared::windef::HHOOK;
-use winapi::um::libloaderapi::GetModuleHandleW;
 use winapi::um::winuser::*;
 
 lazy_static! {
@@ -18,31 +16,13 @@ lazy_static! {
         Mutex::new(BitArray::<u32, U256>::from_elem(false));
 }
 
-pub fn set_keyboard_hook() -> HHOOK {
-    println!("Hooking keyboard events...");
-    unsafe {
-        SetWindowsHookExW(
-            WH_KEYBOARD_LL,
-            Some(low_level_keyboard_proc),
-            GetModuleHandleW(std::ptr::null()),
-            0,
-        )
-    }
-}
-
-pub fn unset_keyboard_hook(hook: HHOOK) {
-    unsafe {
-        UnhookWindowsHookEx(hook);
-    }
-}
-
-unsafe extern "system" fn low_level_keyboard_proc(
+pub unsafe extern "system" fn low_level_keyboard_proc(
     n_code: c_int,
     wparam: WPARAM,
     lparam: LPARAM,
 ) -> LRESULT {
     let _timeout_warning = TimeoutAction::new(std::time::Duration::from_millis(300), || {
-        println!("Timer elapsed!!!!!");
+        println!("Timer elapsed");
     });
 
     if n_code < 0 {
@@ -58,25 +38,24 @@ unsafe extern "system" fn low_level_keyboard_proc(
     let key_down = key_action == WM_KEYDOWN || key_action == WM_SYSKEYDOWN;
     pressed_keys.set(kbdllhookstruct.vkCode as usize, key_down);
 
-    {
-        let debug = DEBUG.lock().unwrap();
-        if *debug && key_down {
-            let s = pressed_keys
-                .iter()
-                .enumerate()
-                .filter(|(_, pressed)| *pressed)
-                .map(|(i, _)| i)
-                .fold(String::new(), |mut s, i| {
-                    let key: VK = num::FromPrimitive::from_usize(i).unwrap();
-                    match std::fmt::write(&mut s, format_args!("{:?} ", key)) {
-                        Ok(()) => s,
-                        Err(_) => s,
-                    }
-                });
-
-            println!("{}", s);
-        }
-    }
+    // {
+    //     let debug = DEBUG.lock().unwrap();
+    //     if *debug && key_down {
+    //         let s = pressed_keys
+    //             .iter()
+    //             .enumerate()
+    //             .filter(|(_, pressed)| *pressed)
+    //             .map(|(i, _)| i)
+    //             .fold(String::new(), |mut s, i| {
+    //                 let key: VK = num::FromPrimitive::from_usize(i).unwrap();
+    //                 match std::fmt::write(&mut s, format_args!("{:?} ", key)) {
+    //                     Ok(()) => s,
+    //                     Err(_) => s,
+    //                 }
+    //             });
+    //         println!("{}", s);
+    //     }
+    // }
 
     match ACTIONS
         .lock()
@@ -86,7 +65,6 @@ unsafe extern "system" fn low_level_keyboard_proc(
     {
         Some(action) => {
             (action.action)();
-            println!("    Done!");
             1
         }
         None => CallNextHookEx(std::ptr::null_mut(), n_code, wparam, lparam),

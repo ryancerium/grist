@@ -33,3 +33,16 @@ macro_rules! CHECK_HRESULT {
         }
     };
 }
+
+#[macro_export]
+macro_rules! CHECK_HWND {
+    ($hwnd_expr:expr) => {
+        match $hwnd_expr.as_mut() {
+            Some(hwnd) => hwnd,
+            None => {
+                println!("HWND is null: {}:{}", file!(), line!());
+                return;
+            }
+        }
+    };
+}

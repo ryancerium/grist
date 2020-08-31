@@ -1,10 +1,10 @@
 use crate::keyboard;
-use crate::DEBUG;
+use crate::{msg, CHECK_BOOL, DEBUG};
 use std::ffi::OsStr;
 use std::iter::once;
 use std::os::windows::ffi::OsStrExt;
 use winapi::shared::basetsd::UINT_PTR;
-use winapi::shared::minwindef::{LOWORD, LPARAM, LRESULT, UINT, WPARAM};
+use winapi::shared::minwindef::{BOOL, DWORD, LOWORD, LPARAM, LRESULT, UINT, WPARAM};
 use winapi::shared::windef::HHOOK;
 use winapi::shared::windef::HICON;
 use winapi::shared::windef::HWND;
@@ -13,12 +13,29 @@ use winapi::um::libloaderapi::GetModuleHandleW;
 use winapi::um::shellapi::*;
 use winapi::um::winuser::*;
 
+#[link(name = "wtsapi32")]
+extern "system" {
+    pub fn WTSRegisterSessionNotification(hwnd: HWND, dwFlags: DWORD) -> BOOL;
+    pub fn WTSUnRegisterSessionNotification(hwnd: HWND) -> BOOL;
+}
+
+pub const NOTIFY_FOR_THIS_SESSION: DWORD = 0x00000000;
+#[allow(dead_code)]
+pub const NOTIFY_FOR_ALL_SESSIONS: DWORD = 0x00000001;
+
+// Notification icon messages
 pub const WM_CLICK_NOTIFY_ICON: UINT = winapi::um::winuser::WM_APP + 1;
 pub const MENU_EXIT: UINT_PTR = 0x00;
 pub const MENU_RELOAD: UINT_PTR = 0x01;
 
 fn utf16(value: &str) -> Vec<u16> {
     OsStr::new(value).encode_wide().chain(once(0)).collect()
+}
+
+unsafe fn grist_app_from_hwnd<'window>(hwnd: &'window HWND) -> &'window mut GristApp {
+    let grist_app_ptr = GetWindowLongPtrW(*hwnd, 0) as *mut GristApp;
+    let grist_app = &mut *grist_app_ptr;
+    grist_app
 }
 
 fn load_icon() -> HICON {
@@ -98,19 +115,23 @@ unsafe extern "system" fn wndproc(
     wparam: WPARAM,
     lparam: LPARAM,
 ) -> LRESULT {
-    if msg != WM_ENTERIDLE && lparam != WM_MOUSEMOVE as isize && *DEBUG.lock().unwrap() == true {
-        println!("MSG: 0x{:X} w: 0x{:X} l: 0x{:X}", msg, wparam, lparam);
-    }
-
     match msg {
         WM_CREATE => {
+            CHECK_BOOL!(WTSRegisterSessionNotification(
+                hwnd,
+                NOTIFY_FOR_THIS_SESSION
+            ));
             let nid = create_notification_icon(hwnd);
-            let hook = keyboard::set_keyboard_hook();
-            let grist_app = Box::new(GristApp { nid, hook });
+            let mut grist_app = Box::new(GristApp {
+                nid,
+                hook: std::ptr::null_mut(),
+            });
+            grist_app.hook_keyboard();
             SetWindowLongPtrW(hwnd, 0, Box::into_raw(grist_app) as isize);
             ()
         }
         WM_DESTROY => {
+            CHECK_BOOL!(WTSUnRegisterSessionNotification(hwnd));
             let _grist_app = Box::from_raw(GetWindowLongPtrW(hwnd, 0) as *mut GristApp);
         }
         WM_CLICK_NOTIFY_ICON => on_notification_icon(hwnd, wparam, lparam),
@@ -121,14 +142,60 @@ unsafe extern "system" fn wndproc(
                 ()
             }
             MENU_RELOAD => {
-                let grist_app_ptr = GetWindowLongPtrW(hwnd, 0) as *mut GristApp;
-                let grist_app = &mut *grist_app_ptr;
-                grist_app.rehook_keyboard();
+                grist_app_from_hwnd(&hwnd).rehook_keyboard();
                 ()
             }
             _ => (),
         },
-        _ => (),
+        WM_WTSSESSION_CHANGE => {
+            match wparam {
+                WTS_CONSOLE_CONNECT => {
+                    println!("{:>30} WTS_CONSOLE_CONNECT", "WM_WTSSESSION_CHANGE")
+                }
+                WTS_CONSOLE_DISCONNECT => {
+                    println!("{:>30} WTS_CONSOLE_DISCONNECT", "WM_WTSSESSION_CHANGE")
+                }
+                WTS_REMOTE_CONNECT => println!("{:>30} WTS_REMOTE_CONNECT", "WM_WTSSESSION_CHANGE"),
+                WTS_REMOTE_DISCONNECT => {
+                    println!("{:>30} WTS_REMOTE_DISCONNECT", "WM_WTSSESSION_CHANGE")
+                }
+                WTS_SESSION_LOGON => {
+                    grist_app_from_hwnd(&hwnd).hook_keyboard();
+                    println!("{:>30} WTS_SESSION_LOGON", "WM_WTSSESSION_CHANGE")
+                }
+                WTS_SESSION_LOGOFF => println!("{:>30} WTS_SESSION_LOGOFF", "WM_WTSSESSION_CHANGE"),
+                WTS_SESSION_LOCK => {
+                    grist_app_from_hwnd(&hwnd).unhook_keyboard();
+                    println!("{:>30} WTS_SESSION_LOCK", "WM_WTSSESSION_CHANGE")
+                }
+                WTS_SESSION_UNLOCK => {
+                    grist_app_from_hwnd(&hwnd).hook_keyboard();
+                    println!("{:>30} WTS_SESSION_UNLOCK", "WM_WTSSESSION_CHANGE")
+                }
+                WTS_SESSION_REMOTE_CONTROL => {
+                    println!("{:>30} WTS_SESSION_REMOTE_CONTROL", "WM_WTSSESSION_CHANGE")
+                }
+                WTS_SESSION_CREATE => println!("{:>30} WTS_SESSION_CREATE", "WM_WTSSESSION_CHANGE"),
+                WTS_SESSION_TERMINATE => {
+                    println!("{:>30} WTS_SESSION_TERMINATE", "WM_WTSSESSION_CHANGE")
+                }
+                _ => println!("{:>30} WTS Unknown wParam", "WM_WTSSESSION_CHANGE"),
+            }
+            ()
+        }
+        _ => {
+            if msg != WM_ENTERIDLE
+                && lparam != WM_MOUSEMOVE as isize
+                && *DEBUG.lock().unwrap() == true
+            {
+                println!(
+                    "{:>30} w: 0x{:X} l: 0x{:X}",
+                    msg::msg_to_string(msg),
+                    wparam,
+                    lparam
+                );
+            }
+        }
     };
 
     DefWindowProcW(hwnd, msg, wparam, lparam)
@@ -180,17 +247,37 @@ struct GristApp {
 }
 
 impl GristApp {
-    pub fn rehook_keyboard(&mut self) {
+    pub fn unhook_keyboard(&mut self) {
         if self.hook != std::ptr::null_mut() {
-            println!("Unhooked keyboard events...");
-
-            keyboard::unset_keyboard_hook(self.hook);
+            unsafe {
+                UnhookWindowsHookEx(self.hook);
+            }
             self.hook = std::ptr::null_mut();
+            println!("Unhooked keyboard events");
         } else {
             println!("Keyboard wasn't hooked!");
         }
+    }
 
-        self.hook = keyboard::set_keyboard_hook();
+    pub fn hook_keyboard(&mut self) {
+        if self.hook == std::ptr::null_mut() {
+            self.hook = unsafe {
+                SetWindowsHookExW(
+                    WH_KEYBOARD_LL,
+                    Some(keyboard::low_level_keyboard_proc),
+                    GetModuleHandleW(std::ptr::null()),
+                    0,
+                )
+            };
+            println!("Hooked keyboard events");
+        } else {
+            println!("Keyboard was already hooked!");
+        }
+    }
+
+    pub fn rehook_keyboard(&mut self) {
+        self.unhook_keyboard();
+        self.hook_keyboard();
     }
 }
 
@@ -198,11 +285,7 @@ impl Drop for GristApp {
     fn drop(&mut self) {
         unsafe {
             Shell_NotifyIconW(NIM_DELETE, &mut self.nid);
-
-            if self.hook != std::ptr::null_mut() {
-                keyboard::unset_keyboard_hook(self.hook);
-                self.hook = std::ptr::null_mut();
-            }
+            self.unhook_keyboard();
         }
     }
 }

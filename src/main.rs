@@ -26,7 +26,7 @@ lazy_static! {
 }
 
 lazy_static! {
-    pub static ref DEBUG: Mutex<bool> = Mutex::new(false);
+    pub static ref DEBUG: Mutex<bool> = Mutex::new(true);
 }
 
 fn create_actions() -> Vec<HotkeyAction> {
@@ -51,9 +51,10 @@ fn main() {
         *ACTIONS.lock().unwrap() = create_actions();
     }
 
-    let hwnd = ui::create();
+    let hwnd = unsafe { CHECK_HWND!(ui::create()) };
+
     let mut msg = MSG::default();
-    println!("Press any hotkey...");
+    println!("Win + LeftCtrl + K to toggle debug");
 
     unsafe {
         while GetMessageW(&mut msg, hwnd, 0, 0) > 0 {

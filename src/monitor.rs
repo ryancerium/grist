@@ -2,6 +2,7 @@ use crate::cardinal::Cardinal;
 use crate::hotkey_action::{HotkeyAction, VK};
 use crate::window_actions::set_window_rect;
 use crate::CHECK_BOOL;
+use crate::CHECK_HWND;
 use winapi::shared::minwindef::{BOOL, LPARAM};
 use winapi::shared::windef::{HDC, HMONITOR, LPRECT, RECT};
 use winapi::um::winuser::*;
@@ -77,7 +78,7 @@ fn move_to_adjacent_monitor(direction: Direction) {
     });
 
     unsafe {
-        let foreground_window = GetForegroundWindow();
+        let foreground_window = CHECK_HWND!(GetForegroundWindow());
         let mut monitor_info = init_monitor_info();
         CHECK_BOOL!(GetMonitorInfoW(
             MonitorFromWindow(foreground_window, MONITOR_DEFAULTTOPRIMARY),
