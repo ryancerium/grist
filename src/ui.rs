@@ -1,8 +1,12 @@
-use crate::keyboard;
+use crate::timeout_action;
+use crate::ACTIONS;
 use crate::{msg, CHECK_BOOL, DEBUG};
+use bitarray::BitArray;
 use std::ffi::OsStr;
 use std::iter::once;
-use std::os::windows::ffi::OsStrExt;
+use std::{os::windows::ffi::OsStrExt, sync::Mutex};
+use timeout_action::TimeoutAction;
+use typenum::U256;
 use winapi::shared::basetsd::UINT_PTR;
 use winapi::shared::minwindef::{BOOL, DWORD, LOWORD, LPARAM, LRESULT, UINT, WPARAM};
 use winapi::shared::windef::HHOOK;
@@ -11,7 +15,7 @@ use winapi::shared::windef::HWND;
 use winapi::shared::windowsx::{GET_X_LPARAM, GET_Y_LPARAM};
 use winapi::um::libloaderapi::GetModuleHandleW;
 use winapi::um::shellapi::*;
-use winapi::um::winuser::*;
+use winapi::{ctypes::c_int, um::winuser::*};
 
 #[link(name = "wtsapi32")]
 extern "system" {
@@ -28,14 +32,20 @@ pub const WM_CLICK_NOTIFY_ICON: UINT = winapi::um::winuser::WM_APP + 1;
 pub const MENU_EXIT: UINT_PTR = 0x00;
 pub const MENU_RELOAD: UINT_PTR = 0x01;
 
+lazy_static! {
+    static ref PRESSED_KEYS: Mutex<BitArray<u32, U256>> = Mutex::new(BitArray::<u32, U256>::from_elem(false));
+}
+
 fn utf16(value: &str) -> Vec<u16> {
     OsStr::new(value).encode_wide().chain(once(0)).collect()
 }
 
-unsafe fn grist_app_from_hwnd<'window>(hwnd: &'window HWND) -> &'window mut GristApp {
-    let grist_app_ptr = GetWindowLongPtrW(*hwnd, 0) as *mut GristApp;
-    let grist_app = &mut *grist_app_ptr;
-    grist_app
+fn grist_app_from_hwnd<'window>(hwnd: &'window HWND) -> &'window mut GristApp {
+    unsafe {
+        let grist_app_ptr = GetWindowLongPtrW(*hwnd, 0) as *mut GristApp;
+        let grist_app = &mut *grist_app_ptr;
+        grist_app
+    }
 }
 
 fn load_icon() -> HICON {
@@ -109,13 +119,43 @@ fn on_notification_icon(hwnd: HWND, wparam: WPARAM, lparam: LPARAM) -> () {
     };
 }
 
+fn on_wtssession_change(hwnd: HWND, _msg: UINT, wparam: WPARAM, _lparam: LPARAM) {
+    let print_wts = |wts| println!("          WM_WTSSESSION_CHANGE {}", wts);
+
+    match wparam {
+        WTS_CONSOLE_CONNECT => print_wts("WTS_CONSOLE_CONNECT"),
+        WTS_CONSOLE_DISCONNECT => print_wts("WTS_CONSOLE_DISCONNECT"),
+        WTS_REMOTE_CONNECT => print_wts("WTS_REMOTE_CONNECT"),
+        WTS_REMOTE_DISCONNECT => print_wts("WTS_REMOTE_DISCONNECT"),
+        WTS_SESSION_LOGON => {
+            grist_app_from_hwnd(&hwnd).hook_keyboard();
+            print_wts("WTS_SESSION_LOGON")
+        }
+        WTS_SESSION_LOGOFF => {
+            grist_app_from_hwnd(&hwnd).unhook_keyboard();
+            print_wts("WTS_SESSION_LOGOFF")
+        }
+        WTS_SESSION_LOCK => {
+            grist_app_from_hwnd(&hwnd).unhook_keyboard();
+            print_wts("WTS_SESSION_LOCK")
+        }
+        WTS_SESSION_UNLOCK => {
+            grist_app_from_hwnd(&hwnd).hook_keyboard();
+            print_wts("WTS_SESSION_UNLOCK")
+        }
+        WTS_SESSION_REMOTE_CONTROL => print_wts("WTS_SESSION_REMOTE_CONTROL"),
+        WTS_SESSION_CREATE => print_wts("WTS_SESSION_CREATE"),
+        WTS_SESSION_TERMINATE => print_wts("WTS_SESSION_TERMINATE"),
+        _ => print_wts("WTS Unknown wParam"),
+    }
+}
+
 unsafe extern "system" fn wndproc(hwnd: HWND, msg: UINT, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
     match msg {
         WM_CREATE => {
             CHECK_BOOL!(WTSRegisterSessionNotification(hwnd, NOTIFY_FOR_THIS_SESSION));
-            let nid = create_notification_icon(hwnd);
             let mut grist_app = Box::new(GristApp {
-                nid,
+                nid: create_notification_icon(hwnd),
                 hook: std::ptr::null_mut(),
             });
             grist_app.hook_keyboard();
@@ -139,32 +179,7 @@ unsafe extern "system" fn wndproc(hwnd: HWND, msg: UINT, wparam: WPARAM, lparam:
             }
             _ => (),
         },
-        WM_WTSSESSION_CHANGE => {
-            match wparam {
-                WTS_CONSOLE_CONNECT => println!("{:>30} WTS_CONSOLE_CONNECT", "WM_WTSSESSION_CHANGE"),
-                WTS_CONSOLE_DISCONNECT => println!("{:>30} WTS_CONSOLE_DISCONNECT", "WM_WTSSESSION_CHANGE"),
-                WTS_REMOTE_CONNECT => println!("{:>30} WTS_REMOTE_CONNECT", "WM_WTSSESSION_CHANGE"),
-                WTS_REMOTE_DISCONNECT => println!("{:>30} WTS_REMOTE_DISCONNECT", "WM_WTSSESSION_CHANGE"),
-                WTS_SESSION_LOGON => {
-                    grist_app_from_hwnd(&hwnd).hook_keyboard();
-                    println!("{:>30} WTS_SESSION_LOGON", "WM_WTSSESSION_CHANGE")
-                }
-                WTS_SESSION_LOGOFF => println!("{:>30} WTS_SESSION_LOGOFF", "WM_WTSSESSION_CHANGE"),
-                WTS_SESSION_LOCK => {
-                    grist_app_from_hwnd(&hwnd).unhook_keyboard();
-                    println!("{:>30} WTS_SESSION_LOCK", "WM_WTSSESSION_CHANGE")
-                }
-                WTS_SESSION_UNLOCK => {
-                    grist_app_from_hwnd(&hwnd).hook_keyboard();
-                    println!("{:>30} WTS_SESSION_UNLOCK", "WM_WTSSESSION_CHANGE")
-                }
-                WTS_SESSION_REMOTE_CONTROL => println!("{:>30} WTS_SESSION_REMOTE_CONTROL", "WM_WTSSESSION_CHANGE"),
-                WTS_SESSION_CREATE => println!("{:>30} WTS_SESSION_CREATE", "WM_WTSSESSION_CHANGE"),
-                WTS_SESSION_TERMINATE => println!("{:>30} WTS_SESSION_TERMINATE", "WM_WTSSESSION_CHANGE"),
-                _ => println!("{:>30} WTS Unknown wParam", "WM_WTSSESSION_CHANGE"),
-            }
-            ()
-        }
+        WM_WTSSESSION_CHANGE => on_wtssession_change(hwnd, msg, wparam, lparam),
         _ => {
             if msg != WM_ENTERIDLE && lparam != WM_MOUSEMOVE as isize && *DEBUG.lock().unwrap() == true {
                 println!("{:>30} w: 0x{:X} l: 0x{:X}", msg::msg_to_string(msg), wparam, lparam);
@@ -173,6 +188,57 @@ unsafe extern "system" fn wndproc(hwnd: HWND, msg: UINT, wparam: WPARAM, lparam:
     };
 
     DefWindowProcW(hwnd, msg, wparam, lparam)
+}
+
+pub unsafe extern "system" fn low_level_keyboard_proc(n_code: c_int, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
+    let _timeout_warning = TimeoutAction::new(std::time::Duration::from_millis(300), || {
+        println!("Timer elapsed");
+    });
+
+    if n_code < 0 {
+        println!("low_level_keyboard_proc(): ncode < 0");
+        return CallNextHookEx(std::ptr::null_mut(), n_code, wparam, lparam);
+    }
+
+    let key_action = wparam as UINT;
+    let kbdllhookstruct = &*(lparam as *const KBDLLHOOKSTRUCT);
+
+    let mut pressed_keys = PRESSED_KEYS.lock().unwrap();
+    let key_down = key_action == WM_KEYDOWN || key_action == WM_SYSKEYDOWN;
+
+    pressed_keys.set(kbdllhookstruct.vkCode as usize, key_down);
+
+    // {
+    //     let debug = DEBUG.lock().unwrap();
+    //     if *debug && key_down {
+    //         let s = pressed_keys
+    //             .iter()
+    //             .enumerate()
+    //             .filter(|(_, pressed)| *pressed)
+    //             .map(|(i, _)| i)
+    //             .fold(String::new(), |mut s, i| {
+    //                 let key: VK = num::FromPrimitive::from_usize(i).unwrap();
+    //                 match std::fmt::write(&mut s, format_args!("{:?} ", key)) {
+    //                     Ok(()) => s,
+    //                     Err(_) => s,
+    //                 }
+    //             });
+    //         println!("{}", s);
+    //     }
+    // }
+
+    match ACTIONS
+        .lock()
+        .unwrap()
+        .iter()
+        .find(|hotkey_action| hotkey_action.matches(&pressed_keys))
+    {
+        Some(action) => {
+            (action.action)();
+            1
+        }
+        None => CallNextHookEx(std::ptr::null_mut(), n_code, wparam, lparam),
+    }
 }
 
 pub fn create() -> HWND {
@@ -238,7 +304,7 @@ impl GristApp {
             self.hook = unsafe {
                 SetWindowsHookExW(
                     WH_KEYBOARD_LL,
-                    Some(keyboard::low_level_keyboard_proc),
+                    Some(low_level_keyboard_proc),
                     GetModuleHandleW(std::ptr::null()),
                     0,
                 )

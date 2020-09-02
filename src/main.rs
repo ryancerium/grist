@@ -4,7 +4,6 @@
 // Declare the application's modules
 mod cardinal;
 mod hotkey_action;
-mod keyboard;
 mod monitor;
 mod msg;
 mod timeout_action;
