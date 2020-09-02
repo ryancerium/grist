@@ -6,7 +6,6 @@ mod cardinal;
 mod hotkey_action;
 mod monitor;
 mod msg;
-mod timeout_action;
 mod ui;
 mod window_actions;
 

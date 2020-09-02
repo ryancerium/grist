@@ -1,11 +1,9 @@
-use crate::timeout_action;
 use crate::ACTIONS;
 use crate::{hotkey_action, msg, CHECK_BOOL, DEBUG};
 use num::FromPrimitive;
 use std::ffi::OsStr;
 use std::iter::once;
 use std::{collections::HashSet, os::windows::ffi::OsStrExt, sync::Mutex};
-use timeout_action::TimeoutAction;
 use winapi::shared::basetsd::UINT_PTR;
 use winapi::shared::minwindef::{BOOL, DWORD, LOWORD, LPARAM, LRESULT, UINT, WPARAM};
 use winapi::shared::windef::HHOOK;
@@ -190,10 +188,6 @@ unsafe extern "system" fn wndproc(hwnd: HWND, msg: UINT, wparam: WPARAM, lparam:
 }
 
 pub unsafe extern "system" fn low_level_keyboard_proc(n_code: c_int, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
-    let _timeout_warning = TimeoutAction::new(std::time::Duration::from_millis(300), || {
-        println!("Timer elapsed");
-    });
-
     if n_code < 0 {
         println!("low_level_keyboard_proc(): ncode < 0");
         return CallNextHookEx(std::ptr::null_mut(), n_code, wparam, lparam);
