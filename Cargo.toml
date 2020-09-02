@@ -24,9 +24,7 @@ features = [
 ]
 
 [dependencies]
-bitarray = "0.1.2"
 lazy_static = "1.4.0"
 num = "0.3.0"
 num-derive = "0.3.2"
 num-traits = "0.2"
-typenum = "1.12.0"

@@ -1,39 +1,23 @@
-extern crate num;
-extern crate typenum;
-
-use bitarray::BitArray;
-use typenum::U256;
+use std::collections::HashSet;
 
 pub type Action = fn() -> ();
 
 #[derive(Clone)]
 pub struct HotkeyAction {
     pub action: Action,
-    bitarray: BitArray<u32, U256>,
-}
-
-fn keys_as_bit_array(keys: &[VK]) -> BitArray<u32, U256> {
-    let mut bits = BitArray::<u32, U256>::from_elem(false);
-    for &key in keys {
-        bits.set(key as usize, true);
-    }
-    bits
+    pub trigger: HashSet<VK>,
 }
 
 impl HotkeyAction {
     pub fn new(action: Action, keys: &[VK]) -> HotkeyAction {
         HotkeyAction {
             action,
-            bitarray: keys_as_bit_array(keys),
+            trigger: keys.iter().cloned().collect(),
         }
-    }
-
-    pub fn matches(&self, pressed_keys: &BitArray<u32, U256>) -> bool {
-        self.bitarray == *pressed_keys
     }
 }
 
-#[derive(Copy, Clone, Debug, FromPrimitive)]
+#[derive(Clone, Copy, Debug, Eq, FromPrimitive, Hash, PartialEq)]
 #[allow(non_camel_case_types)]
 /// <summary>
 /// Enumeration for virtual keys.

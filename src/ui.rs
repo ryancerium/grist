@@ -1,12 +1,11 @@
 use crate::timeout_action;
 use crate::ACTIONS;
-use crate::{msg, CHECK_BOOL, DEBUG};
-use bitarray::BitArray;
+use crate::{hotkey_action, msg, CHECK_BOOL, DEBUG};
+use num::FromPrimitive;
 use std::ffi::OsStr;
 use std::iter::once;
-use std::{os::windows::ffi::OsStrExt, sync::Mutex};
+use std::{collections::HashSet, os::windows::ffi::OsStrExt, sync::Mutex};
 use timeout_action::TimeoutAction;
-use typenum::U256;
 use winapi::shared::basetsd::UINT_PTR;
 use winapi::shared::minwindef::{BOOL, DWORD, LOWORD, LPARAM, LRESULT, UINT, WPARAM};
 use winapi::shared::windef::HHOOK;
@@ -33,7 +32,7 @@ pub const MENU_EXIT: UINT_PTR = 0x00;
 pub const MENU_RELOAD: UINT_PTR = 0x01;
 
 lazy_static! {
-    static ref PRESSED_KEYS: Mutex<BitArray<u32, U256>> = Mutex::new(BitArray::<u32, U256>::from_elem(false));
+    static ref PRESSED_KEYS: Mutex<HashSet<hotkey_action::VK>> = Mutex::new(HashSet::<hotkey_action::VK>::new());
 }
 
 fn utf16(value: &str) -> Vec<u16> {
@@ -200,29 +199,28 @@ pub unsafe extern "system" fn low_level_keyboard_proc(n_code: c_int, wparam: WPA
         return CallNextHookEx(std::ptr::null_mut(), n_code, wparam, lparam);
     }
 
-    let key_action = wparam as UINT;
-    let kbdllhookstruct = &*(lparam as *const KBDLLHOOKSTRUCT);
-
+    let vk_code = (*(lparam as *const KBDLLHOOKSTRUCT)).vkCode;
     let mut pressed_keys = PRESSED_KEYS.lock().unwrap();
-    let key_down = key_action == WM_KEYDOWN || key_action == WM_SYSKEYDOWN;
 
-    pressed_keys.set(kbdllhookstruct.vkCode as usize, key_down);
+    match hotkey_action::VK::from_u32(vk_code) {
+        Some(vk_code) => match wparam as UINT {
+            WM_KEYDOWN | WM_SYSKEYDOWN => pressed_keys.insert(vk_code),
+            WM_KEYUP | WM_SYSKEYUP => pressed_keys.remove(&vk_code),
+            _ => true,
+        },
+        _ => true,
+    };
 
     // {
-    //     let debug = DEBUG.lock().unwrap();
-    //     if *debug && key_down {
-    //         let s = pressed_keys
-    //             .iter()
-    //             .enumerate()
-    //             .filter(|(_, pressed)| *pressed)
-    //             .map(|(i, _)| i)
-    //             .fold(String::new(), |mut s, i| {
-    //                 let key: VK = num::FromPrimitive::from_usize(i).unwrap();
-    //                 match std::fmt::write(&mut s, format_args!("{:?} ", key)) {
-    //                     Ok(()) => s,
-    //                     Err(_) => s,
-    //                 }
-    //             });
+    //     let debug = *DEBUG.lock().unwrap();
+    //     let msg = wparam as UINT;
+    //     if debug && msg == WM_KEYDOWN || msg == WM_SYSKEYDOWN {
+    //         let s = pressed_keys.iter().fold(String::new(), |mut s, i| {
+    //             match std::fmt::write(&mut s, format_args!("{:?} ", *i)) {
+    //                 Ok(()) => s,
+    //                 Err(_) => s,
+    //             }
+    //         });
     //         println!("{}", s);
     //     }
     // }
@@ -231,7 +229,7 @@ pub unsafe extern "system" fn low_level_keyboard_proc(n_code: c_int, wparam: WPA
         .lock()
         .unwrap()
         .iter()
-        .find(|hotkey_action| hotkey_action.matches(&pressed_keys))
+        .find(|hotkey_action| hotkey_action.trigger == *pressed_keys)
     {
         Some(action) => {
             (action.action)();
