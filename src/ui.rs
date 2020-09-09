@@ -1,18 +1,19 @@
 use crate::ACTIONS;
 use crate::{hotkey_action, msg, CHECK_BOOL, DEBUG};
 use num::FromPrimitive;
-use std::ffi::OsStr;
+use std::collections::BTreeSet;
+use std::ffi::{OsStr, OsString};
 use std::iter::once;
-use std::{collections::HashSet, os::windows::ffi::OsStrExt, sync::Mutex};
+use std::os::windows::ffi::{OsStringExt, OsStrExt};
+use std::sync::Mutex;
+use winapi::ctypes::c_int;
 use winapi::shared::basetsd::UINT_PTR;
 use winapi::shared::minwindef::{BOOL, DWORD, LOWORD, LPARAM, LRESULT, UINT, WPARAM};
-use winapi::shared::windef::HHOOK;
-use winapi::shared::windef::HICON;
-use winapi::shared::windef::HWND;
+use winapi::shared::windef::{HHOOK, HICON, HWND};
 use winapi::shared::windowsx::{GET_X_LPARAM, GET_Y_LPARAM};
 use winapi::um::libloaderapi::GetModuleHandleW;
 use winapi::um::shellapi::*;
-use winapi::{ctypes::c_int, um::winuser::*};
+use winapi::um::winuser::*;
 
 #[link(name = "wtsapi32")]
 extern "system" {
@@ -20,17 +21,17 @@ extern "system" {
     pub fn WTSUnRegisterSessionNotification(hwnd: HWND) -> BOOL;
 }
 
-pub const NOTIFY_FOR_THIS_SESSION: DWORD = 0x00000000;
+const NOTIFY_FOR_THIS_SESSION: DWORD = 0x00000000;
 #[allow(dead_code)]
-pub const NOTIFY_FOR_ALL_SESSIONS: DWORD = 0x00000001;
+const NOTIFY_FOR_ALL_SESSIONS: DWORD = 0x00000001;
 
 // Notification icon messages
-pub const WM_CLICK_NOTIFY_ICON: UINT = winapi::um::winuser::WM_APP + 1;
-pub const MENU_EXIT: UINT_PTR = 0x00;
-pub const MENU_RELOAD: UINT_PTR = 0x01;
+const WM_CLICK_NOTIFY_ICON: UINT = winapi::um::winuser::WM_APP + 1;
+const MENU_EXIT: UINT_PTR = 0x00;
+const MENU_RELOAD: UINT_PTR = 0x01;
 
 lazy_static! {
-    static ref PRESSED_KEYS: Mutex<HashSet<hotkey_action::VK>> = Mutex::new(HashSet::<hotkey_action::VK>::new());
+    static ref PRESSED_KEYS: Mutex<BTreeSet<hotkey_action::VK>> = Mutex::new(BTreeSet::<hotkey_action::VK>::new());
 }
 
 fn utf16(value: &str) -> Vec<u16> {
@@ -58,12 +59,12 @@ fn load_icon() -> HICON {
     }
 }
 
-fn create_notification_icon(window: HWND) -> winapi::um::shellapi::NOTIFYICONDATAW {
+fn create_notification_icon(hwnd: HWND) -> winapi::um::shellapi::NOTIFYICONDATAW {
     let tooltip: Vec<u16> = utf16("Grist Window Manager");
 
     let mut nid = NOTIFYICONDATAW::default();
     nid.cbSize = std::mem::size_of::<NOTIFYICONDATAW>() as u32;
-    nid.hWnd = window;
+    nid.hWnd = hwnd;
     nid.uID = 0x0;
     nid.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP;
     nid.uCallbackMessage = WM_CLICK_NOTIFY_ICON;
@@ -147,6 +148,14 @@ fn on_wtssession_change(hwnd: HWND, _msg: UINT, wparam: WPARAM, _lparam: LPARAM)
     }
 }
 
+pub fn get_window_text(hwnd: HWND) -> String {
+    let text_length = unsafe { GetWindowTextLengthW(hwnd) + 1 };
+    let mut chars = Vec::new();
+    chars.resize(text_length as usize, 0);
+    unsafe { GetWindowTextW(hwnd, chars.as_mut_ptr(), chars.len() as i32) };
+    OsString::from_wide(chars.as_slice()).into_string().unwrap()
+}
+
 unsafe extern "system" fn wndproc(hwnd: HWND, msg: UINT, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
     match msg {
         WM_CREATE => {
@@ -187,7 +196,7 @@ unsafe extern "system" fn wndproc(hwnd: HWND, msg: UINT, wparam: WPARAM, lparam:
     DefWindowProcW(hwnd, msg, wparam, lparam)
 }
 
-pub unsafe extern "system" fn low_level_keyboard_proc(n_code: c_int, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
+unsafe extern "system" fn low_level_keyboard_proc(n_code: c_int, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
     if n_code < 0 {
         println!("low_level_keyboard_proc(): ncode < 0");
         return CallNextHookEx(std::ptr::null_mut(), n_code, wparam, lparam);
@@ -220,7 +229,7 @@ pub unsafe extern "system" fn low_level_keyboard_proc(n_code: c_int, wparam: WPA
     // }
 
     match ACTIONS
-        .lock()
+        .read()
         .unwrap()
         .iter()
         .find(|hotkey_action| hotkey_action.trigger == *pressed_keys)

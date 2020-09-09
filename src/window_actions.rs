@@ -10,9 +10,6 @@ use winapi::shared::winerror::S_OK;
 use winapi::um::dwmapi::{DwmGetWindowAttribute, DWMWA_EXTENDED_FRAME_BOUNDS};
 use winapi::um::winuser::*;
 
-use std::ffi::OsString;
-use std::os::windows::ffi::OsStringExt;
-
 type WorkAreaToWindowPosFn = dyn Fn(&RECT) -> RECT;
 
 pub fn add_actions(actions: &mut Vec<HotkeyAction>) {
@@ -41,12 +38,7 @@ pub fn add_actions(actions: &mut Vec<HotkeyAction>) {
 
 pub fn set_window_rect(hwnd: HWND, position: &RECT, flags: u32) -> BOOL {
     unsafe {
-        let text_length = GetWindowTextLengthW(hwnd) + 1;
-        let mut chars = Vec::new();
-        chars.resize(text_length as usize, 0);
-        GetWindowTextW(hwnd, chars.as_mut_ptr(), chars.len() as i32);
-        let title = OsString::from_wide(chars.as_slice());
-        println!("Positioning '{}'", title.into_string().unwrap());
+        println!("Positioning '{}'", crate::ui::get_window_text(hwnd));
         ShowWindow(hwnd, SW_RESTORE);
 
         let margin = calculate_margin(hwnd);

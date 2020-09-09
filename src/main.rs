@@ -21,11 +21,11 @@ extern crate num_derive;
 
 // Import crate members
 use hotkey_action::{HotkeyAction, VK};
-use std::sync::Mutex;
+use std::sync::{Mutex, RwLock};
 use winapi::um::winuser::{DispatchMessageW, GetMessageW, TranslateMessage, MSG};
 
 lazy_static! {
-    static ref ACTIONS: Mutex<Vec<HotkeyAction>> = Mutex::default();
+    static ref ACTIONS: RwLock<Vec<HotkeyAction>> = RwLock::default();
 }
 
 lazy_static! {
@@ -45,13 +45,21 @@ fn create_actions() -> Vec<HotkeyAction> {
             println!("Setting debug to {}", *debug);
         },
         &[VK::LeftWindows, VK::LeftControl, VK::K],
+    ),
+    HotkeyAction::new(
+        || {
+            for action in ACTIONS.read().unwrap().iter() {
+                println!("{:?}", action);
+            }
+        },
+        &[VK::LeftWindows, VK::LeftControl, VK::OEM2]
     )]);
     actions
 }
 
 fn main() {
     {
-        *ACTIONS.lock().unwrap() = create_actions();
+        *ACTIONS.write().unwrap() = create_actions();
     }
 
     let hwnd = unsafe { CHECK_HWND!(ui::create()) };

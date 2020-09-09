@@ -1,11 +1,19 @@
-use std::collections::HashSet;
+use std::cmp::Ordering;
+use std::collections::BTreeSet;
+use std::fmt::Debug;
 
 pub type Action = fn() -> ();
 
 #[derive(Clone)]
 pub struct HotkeyAction {
     pub action: Action,
-    pub trigger: HashSet<VK>,
+    pub trigger: BTreeSet<VK>,
+}
+
+impl Debug for HotkeyAction {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("HotkeyAction").field("trigger", &self.trigger).finish()
+    }
 }
 
 impl HotkeyAction {
@@ -17,7 +25,7 @@ impl HotkeyAction {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, FromPrimitive, Hash, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, FromPrimitive, Hash, PartialEq, PartialOrd)]
 #[allow(non_camel_case_types)]
 /// <summary>
 /// Enumeration for virtual keys.
@@ -215,4 +223,10 @@ pub enum VK {
     Noname = 0xFC,
     PA1 = 0xFD,
     OEMClear = 0xFE,
+}
+
+impl Ord for VK {
+    fn cmp(&self, other: &Self) -> Ordering {
+        format!("{:?}", self).cmp(&format!("{:?}", other))
+    }
 }
