@@ -20,16 +20,18 @@ extern crate lazy_static;
 extern crate num_derive;
 
 // Import crate members
+use bindings::Windows::Win32::UI::WindowsAndMessaging::{
+    DispatchMessageW, GetMessageW, TranslateMessage, MSG,
+};
 use hotkey_action::{HotkeyAction, VK};
 use std::sync::{Mutex, RwLock};
-use winapi::um::winuser::{DispatchMessageW, GetMessageW, TranslateMessage, MSG};
 
 lazy_static! {
     static ref ACTIONS: RwLock<Vec<HotkeyAction>> = RwLock::default();
 }
 
 lazy_static! {
-    pub static ref DEBUG: Mutex<bool> = Mutex::new(true);
+    pub static ref DEBUG: Mutex<bool> = Mutex::new(false);
 }
 
 fn create_actions() -> Vec<HotkeyAction> {
@@ -38,39 +40,45 @@ fn create_actions() -> Vec<HotkeyAction> {
     monitor::add_actions(&mut actions);
     window_actions::add_actions(&mut actions);
 
-    actions.extend_from_slice(&[HotkeyAction::new(
-        || {
-            let mut debug = DEBUG.lock().unwrap();
-            *debug = !*debug;
-            println!("Setting debug to {}", *debug);
-        },
-        &[VK::LeftWindows, VK::LeftControl, VK::K],
-    ),
-    HotkeyAction::new(
-        || {
-            for action in ACTIONS.read().unwrap().iter() {
-                println!("{:?}", action);
-            }
-        },
-        &[VK::LeftWindows, VK::LeftControl, VK::OEM2]
-    )]);
+    actions.extend_from_slice(&[
+        HotkeyAction::new(
+            || {
+                let mut debug = DEBUG.lock().unwrap();
+                *debug = !*debug;
+                println!("Setting debug to {}", *debug);
+            },
+            &[VK::LeftWindows, VK::LeftControl, VK::K],
+        ),
+        HotkeyAction::new(
+            || {
+                for action in ACTIONS.read().unwrap().iter() {
+                    println!("{:?}", action);
+                }
+            },
+            &[VK::LeftWindows, VK::LeftControl, VK::OEM2],
+        ),
+    ]);
     actions
 }
 
-fn main() {
+fn main() -> windows::Result<()> {
     {
         *ACTIONS.write().unwrap() = create_actions();
     }
 
-    let hwnd = unsafe { CHECK_HWND!(ui::create()) };
+    let hwnd = ui::create();
+    if hwnd.is_null() {
+        return Ok(());
+    }
 
     let mut msg = MSG::default();
     println!("Win + LeftCtrl + K to toggle debug");
 
     unsafe {
-        while GetMessageW(&mut msg, hwnd, 0, 0) > 0 {
+        while GetMessageW(&mut msg, hwnd, 0, 0).as_bool() {
             TranslateMessage(&msg);
             DispatchMessageW(&msg);
         }
     }
+    Ok(())
 }

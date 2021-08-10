@@ -1,30 +1,17 @@
 [package]
 name = "grist"
 version = "0.1.0"
-authors = ["rphelps"]
 edition = "2018"
 
 [package.metadata.docs.rs]
 default-target = "x86_64-pc-windows-msvc"
 
-[target.'cfg(windows)'.dependencies.winapi]
-version = "0.3.9"
-default-features = false
-features = [
-    "impl-debug",
-    "impl-default",
-    "dwmapi",
-    "shellapi",
-    "winbase",
-    "wincon",
-    "windef",
-    "windowsx",
-    "winerror",
-    "winuser",
-]
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+bindings = { path = "bindings" }
 lazy_static = "1.4.0"
-num = "0.3.0"
-num-derive = "0.3.2"
-num-traits = "0.2"
+num = "0.4.0"
+num-derive = "0.3.3"
+num-traits = "0.2.14"
+windows = "0.17.1"
