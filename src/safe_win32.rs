@@ -1,21 +1,20 @@
 use std::ffi::c_void;
 
-use bindings::Windows::Win32::Foundation::{
-    CloseHandle, BOOL, HANDLE, HINSTANCE, HWND, LPARAM, LRESULT, MAX_PATH, PWSTR, RECT, WPARAM,
+use eyre::eyre;
+use windows::Win32::Foundation::{
+    CloseHandle, GetLastError, SetLastError, BOOL, HANDLE, HINSTANCE, HWND, LPARAM, LRESULT, MAX_PATH, PWSTR, RECT,
+    WIN32_ERROR, WPARAM,
 };
-use bindings::Windows::Win32::Graphics::Dwm::{DwmGetWindowAttribute, DWMWA_EXTENDED_FRAME_BOUNDS};
-use bindings::Windows::Win32::Graphics::Gdi::{
+use windows::Win32::Graphics::Dwm::{DwmGetWindowAttribute, DWMWA_EXTENDED_FRAME_BOUNDS};
+use windows::Win32::Graphics::Gdi::{
     EnumDisplayMonitors, GetMonitorInfoW, MonitorFromWindow, HDC, HMONITOR, MONITORINFO, MONITOR_FROM_FLAGS,
 };
-use bindings::Windows::Win32::System::Diagnostics::Debug::{GetLastError, SetLastError};
-use bindings::Windows::Win32::System::LibraryLoader::GetModuleHandleW;
-use bindings::Windows::Win32::System::ProcessStatus::K32GetModuleFileNameExW;
-use bindings::Windows::Win32::System::RemoteDesktop::{
-    WTSRegisterSessionNotification, WTSUnRegisterSessionNotification,
-};
-use bindings::Windows::Win32::System::Threading::{OpenProcess, PROCESS_ACCESS_RIGHTS};
-use bindings::Windows::Win32::UI::Shell::{Shell_NotifyIconW, NOTIFYICONDATAW, NOTIFY_ICON_MESSAGE};
-use bindings::Windows::Win32::UI::WindowsAndMessaging::{
+use windows::Win32::System::LibraryLoader::GetModuleHandleW;
+use windows::Win32::System::ProcessStatus::K32GetModuleFileNameExW;
+use windows::Win32::System::RemoteDesktop::{WTSRegisterSessionNotification, WTSUnRegisterSessionNotification};
+use windows::Win32::System::Threading::{OpenProcess, PROCESS_ACCESS_RIGHTS};
+use windows::Win32::UI::Shell::{Shell_NotifyIconW, NOTIFYICONDATAW, NOTIFY_ICON_MESSAGE};
+use windows::Win32::UI::WindowsAndMessaging::{
     CallNextHookEx, CreatePopupMenu, CreateWindowExW, DefWindowProcW, DispatchMessageW, GetForegroundWindow,
     GetMessageW, GetWindowLongPtrW, GetWindowRect, GetWindowTextLengthW, GetWindowTextW, GetWindowThreadProcessId,
     InsertMenuW, PostMessageW, RegisterClassW, SetCursorPos, SetForegroundWindow, SetWindowLongPtrW, SetWindowPos,
@@ -23,7 +22,6 @@ use bindings::Windows::Win32::UI::WindowsAndMessaging::{
     HMENU, HOOKPROC, MENU_ITEM_FLAGS, MSG, SET_WINDOW_POS_FLAGS, SHOW_WINDOW_CMD, TRACK_POPUP_MENU_FLAGS,
     WINDOWS_HOOK_ID, WINDOW_EX_STYLE, WINDOW_LONG_PTR_INDEX, WINDOW_STYLE, WNDCLASSW,
 };
-use eyre::eyre;
 
 pub trait Win32ReturnIntoResult
 where
@@ -43,8 +41,8 @@ impl Win32ReturnIntoResult for BOOL {
 
 impl Win32ReturnIntoResult for HANDLE {
     fn into_result(self) -> eyre::Result<HANDLE> {
-        match self.is_invalid() {
-            true => Err(std::io::Error::last_os_error().into()),
+        match self {
+            HANDLE(-1) => Err(std::io::Error::last_os_error().into()),
             _ => Ok(self),
         }
     }
@@ -52,8 +50,8 @@ impl Win32ReturnIntoResult for HANDLE {
 
 impl Win32ReturnIntoResult for HHOOK {
     fn into_result(self) -> eyre::Result<HHOOK> {
-        match self.is_null() {
-            true => Err(std::io::Error::last_os_error().into()),
+        match self {
+            HHOOK(0) => Err(std::io::Error::last_os_error().into()),
             _ => Ok(self),
         }
     }
@@ -61,8 +59,8 @@ impl Win32ReturnIntoResult for HHOOK {
 
 impl Win32ReturnIntoResult for HINSTANCE {
     fn into_result(self) -> eyre::Result<Self> {
-        match self.is_null() {
-            true => Err(std::io::Error::last_os_error().into()),
+        match self {
+            HINSTANCE(0) => Err(std::io::Error::last_os_error().into()),
             _ => Ok(self),
         }
     }
@@ -70,8 +68,8 @@ impl Win32ReturnIntoResult for HINSTANCE {
 
 impl Win32ReturnIntoResult for HMENU {
     fn into_result(self) -> eyre::Result<Self> {
-        match self.is_null() {
-            true => Err(std::io::Error::last_os_error().into()),
+        match self {
+            HMENU(0) => Err(std::io::Error::last_os_error().into()),
             _ => Ok(self),
         }
     }
@@ -79,8 +77,8 @@ impl Win32ReturnIntoResult for HMENU {
 
 impl Win32ReturnIntoResult for HMONITOR {
     fn into_result(self) -> eyre::Result<Self> {
-        match self.is_null() {
-            true => Err(std::io::Error::last_os_error().into()),
+        match self {
+            HMONITOR(0) => Err(std::io::Error::last_os_error().into()),
             _ => Ok(self),
         }
     }
@@ -88,8 +86,8 @@ impl Win32ReturnIntoResult for HMONITOR {
 
 impl Win32ReturnIntoResult for HWND {
     fn into_result(self) -> eyre::Result<Self> {
-        match self.is_null() {
-            true => Err(std::io::Error::last_os_error().into()),
+        match self.0 {
+            0 => Err(std::io::Error::last_os_error().into()),
             _ => Ok(self),
         }
     }
@@ -163,13 +161,13 @@ pub fn dwm_get_window_attribute_extended_frame_bounds(hwnd: HWND) -> eyre::Resul
     unsafe {
         let success = DwmGetWindowAttribute(
             hwnd,
-            DWMWA_EXTENDED_FRAME_BOUNDS.0 as u32,
+            DWMWA_EXTENDED_FRAME_BOUNDS,
             &mut extended_frame_bounds as *mut RECT as *mut core::ffi::c_void,
             std::mem::size_of_val(&extended_frame_bounds) as u32,
         );
         match success {
             Ok(_) => Ok(extended_frame_bounds),
-            Err(e) => Err(e.into()),
+            Err(e) => Err(eyre!(e.message())),
         }
     }
 }
@@ -193,7 +191,7 @@ pub fn enum_display_monitors() -> eyre::Result<Vec<MONITORINFO>> {
     let mut monitors = Vec::new();
     unsafe {
         let success = EnumDisplayMonitors(
-            HDC::NULL,
+            HDC(0),
             std::ptr::null_mut(),
             Some(enum_display_monitors_callback),
             LPARAM(&mut monitors as *mut Vec<MONITORINFO> as isize),
@@ -219,7 +217,7 @@ pub fn get_module_handle(lpmodulename: PWSTR) -> eyre::Result<HINSTANCE> {
 
 pub fn get_module_file_name(hprocess: HANDLE) -> eyre::Result<String> {
     let mut filename: [u16; MAX_PATH as usize] = [0; MAX_PATH as usize];
-    match unsafe { K32GetModuleFileNameExW(hprocess, HINSTANCE::NULL, PWSTR(filename.as_mut_ptr()), MAX_PATH) } {
+    match unsafe { K32GetModuleFileNameExW(hprocess, HINSTANCE(0), PWSTR(filename.as_mut_ptr()), MAX_PATH) } {
         0 => Err(std::io::Error::last_os_error().into()),
         _ => match String::from_utf16(&filename) {
             Ok(s) => Ok(s),
@@ -254,7 +252,7 @@ pub fn get_window_rect(hwnd: HWND) -> eyre::Result<RECT> {
 
 pub fn get_window_text_length(hwnd: HWND) -> eyre::Result<i32> {
     unsafe {
-        SetLastError(0);
+        SetLastError(WIN32_ERROR(0));
 
         let text_length: i32 = GetWindowTextLengthW(hwnd);
         if text_length > 0 {
@@ -333,7 +331,7 @@ pub fn set_foreground_window(hwnd: HWND) -> eyre::Result<BOOL> {
 
 pub fn set_window_long_ptr(hwnd: HWND, nindex: WINDOW_LONG_PTR_INDEX, dwnewlong: isize) -> eyre::Result<isize> {
     unsafe {
-        SetLastError(0);
+        SetLastError(WIN32_ERROR(0));
 
         let previous = SetWindowLongPtrW(hwnd, nindex, dwnewlong);
         if previous != 0 {
@@ -378,7 +376,7 @@ pub fn show_window(hwnd: HWND, ncmdshow: SHOW_WINDOW_CMD) -> eyre::Result<BOOL> 
 
 #[allow(dead_code)]
 pub fn show_window_async(hwnd: HWND, ncmdshow: SHOW_WINDOW_CMD) -> eyre::Result<BOOL> {
-    unsafe { ShowWindowAsync(hwnd, ncmdshow.0 as i32).into_result() }
+    unsafe { ShowWindowAsync(hwnd, ncmdshow).into_result() }
 }
 
 pub fn track_popup_menu(

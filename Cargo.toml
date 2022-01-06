@@ -15,4 +15,19 @@ lazy_static = "1.4.0"
 num = "0.4.0"
 num-derive = "0.3.3"
 num-traits = "0.2.14"
-windows = "0.21.1"
+[dependencies.windows]
+version = "0.28.0"
+features = [
+    "alloc",
+    "Win32_System_Diagnostics_Debug",
+    "Win32_Foundation",
+    "Win32_Graphics_Dwm",
+    "Win32_Graphics_Gdi",
+    "Win32_System_LibraryLoader",
+    "Win32_System_ProcessStatus",
+    "Win32_System_Threading",
+    "Win32_System_RemoteDesktop",
+    "Win32_UI_Controls",
+    "Win32_UI_Shell",
+    "Win32_UI_WindowsAndMessaging"
+]

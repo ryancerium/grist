@@ -2,9 +2,9 @@ use crate::cardinal::Cardinal;
 use crate::hotkey_action::{HotkeyAction, VK};
 use crate::safe_win32::{enum_display_monitors, get_monitor_info, monitor_from_window, set_cursor_pos};
 use crate::window_actions::{get_foreground_window_not_zoom, set_window_rect};
-use bindings::Windows::Win32::Foundation::RECT;
-use bindings::Windows::Win32::Graphics::Gdi::MONITOR_DEFAULTTOPRIMARY;
-use bindings::Windows::Win32::UI::WindowsAndMessaging::SET_WINDOW_POS_FLAGS;
+use windows::Win32::Foundation::RECT;
+use windows::Win32::Graphics::Gdi::MONITOR_DEFAULTTOPRIMARY;
+use windows::Win32::UI::WindowsAndMessaging::SET_WINDOW_POS_FLAGS;
 
 enum Direction {
     Left,

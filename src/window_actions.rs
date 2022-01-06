@@ -2,10 +2,11 @@ use crate::cardinal::Cardinal;
 use crate::hotkey_action::{HotkeyAction, VK};
 use crate::safe_win32::*;
 use crate::PRINT_STYLE;
-use bindings::Windows::Win32::Foundation::{BOOL, HWND, RECT};
-use bindings::Windows::Win32::Graphics::Gdi::MONITOR_DEFAULTTOPRIMARY;
-use bindings::Windows::Win32::System::Threading::{PROCESS_QUERY_INFORMATION, PROCESS_VM_READ};
-use bindings::Windows::Win32::UI::WindowsAndMessaging::{
+use eyre::eyre;
+use windows::Win32::Foundation::{BOOL, HWND, RECT};
+use windows::Win32::Graphics::Gdi::MONITOR_DEFAULTTOPRIMARY;
+use windows::Win32::System::Threading::{PROCESS_QUERY_INFORMATION, PROCESS_VM_READ};
+use windows::Win32::UI::WindowsAndMessaging::{
     GWL_EXSTYLE, GWL_STYLE, HWND_NOTOPMOST, SET_WINDOW_POS_FLAGS, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER, SW_MAXIMIZE,
     SW_MINIMIZE, SW_RESTORE, WINDOW_EX_STYLE, WINDOW_STYLE, WS_BORDER, WS_CAPTION, WS_CHILD, WS_CHILDWINDOW,
     WS_CLIPCHILDREN, WS_CLIPSIBLINGS, WS_DISABLED, WS_DLGFRAME, WS_EX_ACCEPTFILES, WS_EX_APPWINDOW, WS_EX_CLIENTEDGE,
@@ -16,7 +17,6 @@ use bindings::Windows::Win32::UI::WindowsAndMessaging::{
     WS_ICONIC, WS_MAXIMIZE, WS_MAXIMIZEBOX, WS_MINIMIZE, WS_MINIMIZEBOX, WS_OVERLAPPED, WS_POPUP, WS_POPUPWINDOW,
     WS_SIZEBOX, WS_SYSMENU, WS_TABSTOP, WS_THICKFRAME, WS_TILED, WS_VISIBLE, WS_VSCROLL,
 };
-use eyre::eyre;
 
 type WorkAreaToWindowPosFn = dyn Fn(&RECT) -> RECT;
 
@@ -61,8 +61,16 @@ pub fn add_actions(actions: &mut Vec<HotkeyAction>) {
         HotkeyAction::new("South", south, &[VK::LeftWindows, VK::N6]),
         HotkeyAction::new("Maximize", maximize, &[VK::LeftWindows, VK::Up]),
         HotkeyAction::new("Minimize", minimize, &[VK::LeftWindows, VK::Down]),
-        HotkeyAction::new("Clear Topmost Flag", clear_topmost, &[VK::LeftWindows, VK::LeftShift, VK::Z]),
-        HotkeyAction::new("Print Window Flags", print_window_flags, &[VK::LeftWindows, VK::LeftShift, VK::F]),
+        HotkeyAction::new(
+            "Clear Topmost Flag",
+            clear_topmost,
+            &[VK::LeftWindows, VK::LeftShift, VK::Z],
+        ),
+        HotkeyAction::new(
+            "Print Window Flags",
+            print_window_flags,
+            &[VK::LeftWindows, VK::LeftShift, VK::F],
+        ),
     ]);
 }
 
@@ -72,7 +80,7 @@ pub fn set_window_rect(hwnd: HWND, position: &RECT, flags: SET_WINDOW_POS_FLAGS)
     let margin = calculate_margin(hwnd)?;
     set_window_pos(
         hwnd,
-        HWND::NULL,
+        HWND(0),
         position.left + margin.left,
         position.top + margin.top,
         position.width() + margin.right - margin.left,

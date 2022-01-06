@@ -24,17 +24,21 @@ use eyre::eyre;
 
 // Import crate members
 use crate::safe_win32::{dispatch_message, get_message, translate_message};
-use bindings::Windows::Win32::UI::WindowsAndMessaging::MSG;
 use hotkey_action::{HotkeyAction, VK};
-use std::{sync::{
-    atomic::{AtomicBool, Ordering},
-    RwLock,
-}, collections::BTreeSet};
+use std::{
+    collections::BTreeSet,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        RwLock,
+    },
+};
+use windows::Win32::UI::WindowsAndMessaging::MSG;
 
 lazy_static! {
     static ref ACTIONS: RwLock<Vec<HotkeyAction>> = RwLock::default();
     pub static ref DEBUG: AtomicBool = AtomicBool::new(false);
-    pub static ref PRESSED_KEYS: RwLock<BTreeSet<hotkey_action::VK>> = RwLock::new(BTreeSet::<hotkey_action::VK>::new());
+    pub static ref PRESSED_KEYS: RwLock<BTreeSet<hotkey_action::VK>> =
+        RwLock::new(BTreeSet::<hotkey_action::VK>::new());
 }
 
 fn create_actions() -> Vec<HotkeyAction> {
