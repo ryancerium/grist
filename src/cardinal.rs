@@ -1,5 +1,5 @@
-use std::cmp::{max, min};
 use bindings::Windows::Win32::Foundation::{POINT, RECT};
+use std::cmp::{max, min};
 
 pub trait Cardinal {
     fn width(&self) -> i32;

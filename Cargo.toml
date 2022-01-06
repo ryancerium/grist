@@ -10,8 +10,9 @@ default-target = "x86_64-pc-windows-msvc"
 
 [dependencies]
 bindings = { path = "bindings" }
+eyre = "0.6.5"
 lazy_static = "1.4.0"
 num = "0.4.0"
 num-derive = "0.3.3"
 num-traits = "0.2.14"
-windows = "0.17.1"
+windows = "0.21.1"

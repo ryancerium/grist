@@ -2,31 +2,36 @@ use std::cmp::Ordering;
 use std::collections::BTreeSet;
 use std::fmt::Debug;
 
-pub type Action = fn() -> ();
+pub type Action = fn() -> eyre::Result<()>;
 
 #[derive(Clone)]
 pub struct HotkeyAction {
+    pub name: String,
     pub action: Action,
     pub trigger: BTreeSet<VK>,
 }
 
 impl Debug for HotkeyAction {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("HotkeyAction").field("trigger", &self.trigger).finish()
+        f.debug_struct("HotkeyAction")
+            .field("name", &self.name)
+            .field("trigger", &self.trigger)
+            .finish()
     }
 }
 
 impl HotkeyAction {
-    pub fn new(action: Action, keys: &[VK]) -> HotkeyAction {
+    pub fn new(name: &str, action: Action, keys: &[VK]) -> HotkeyAction {
         HotkeyAction {
+            name: name.to_owned(),
             action,
             trigger: keys.iter().cloned().collect(),
         }
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, FromPrimitive, Hash, PartialEq, PartialOrd)]
-#[allow(non_camel_case_types)]
+#[derive(Clone, Copy, Debug, Eq, FromPrimitive, Hash, PartialEq)]
+#[allow(non_camel_case_types, clippy::upper_case_acronyms)]
 /// <summary>
 /// Enumeration for virtual keys.
 /// </summary>
@@ -225,8 +230,22 @@ pub enum VK {
     OEMClear = 0xFE,
 }
 
+impl VK {
+    fn as_u32(&self) -> u32 {
+        *self as u32
+    }
+}
+
+impl PartialOrd for VK {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        self.as_u32().partial_cmp(&other.as_u32())
+    }
+}
+
 impl Ord for VK {
     fn cmp(&self, other: &Self) -> Ordering {
-        format!("{:?}", self).cmp(&format!("{:?}", other))
+        self.as_u32().cmp(&other.as_u32())
+        //(*self as u32).cmp(&(*other as u32))
+        //format!("{:?}", self).cmp(&format!("{:?}", other))
     }
 }

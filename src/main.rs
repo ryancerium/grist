@@ -6,6 +6,7 @@ mod cardinal;
 mod hotkey_action;
 mod monitor;
 mod msg;
+mod safe_win32;
 mod ui;
 mod window_actions;
 
@@ -19,19 +20,21 @@ extern crate lazy_static;
 #[macro_use]
 extern crate num_derive;
 
+use eyre::eyre;
+
 // Import crate members
-use bindings::Windows::Win32::UI::WindowsAndMessaging::{
-    DispatchMessageW, GetMessageW, TranslateMessage, MSG,
-};
+use crate::safe_win32::{dispatch_message, get_message, translate_message};
+use bindings::Windows::Win32::UI::WindowsAndMessaging::MSG;
 use hotkey_action::{HotkeyAction, VK};
-use std::sync::{Mutex, RwLock};
+use std::{sync::{
+    atomic::{AtomicBool, Ordering},
+    RwLock,
+}, collections::BTreeSet};
 
 lazy_static! {
     static ref ACTIONS: RwLock<Vec<HotkeyAction>> = RwLock::default();
-}
-
-lazy_static! {
-    pub static ref DEBUG: Mutex<bool> = Mutex::new(false);
+    pub static ref DEBUG: AtomicBool = AtomicBool::new(false);
+    pub static ref PRESSED_KEYS: RwLock<BTreeSet<hotkey_action::VK>> = RwLock::new(BTreeSet::<hotkey_action::VK>::new());
 }
 
 fn create_actions() -> Vec<HotkeyAction> {
@@ -42,43 +45,51 @@ fn create_actions() -> Vec<HotkeyAction> {
 
     actions.extend_from_slice(&[
         HotkeyAction::new(
+            "Toggle Debug",
             || {
-                let mut debug = DEBUG.lock().unwrap();
-                *debug = !*debug;
-                println!("Setting debug to {}", *debug);
+                let debug = !DEBUG.load(Ordering::Relaxed);
+                println!("Setting debug to {}", debug);
+                DEBUG.store(debug, Ordering::Relaxed);
+                Ok(())
             },
-            &[VK::LeftWindows, VK::LeftControl, VK::K],
+            &[VK::LeftWindows, VK::LeftShift, VK::D],
         ),
         HotkeyAction::new(
+            "Print Actions",
             || {
                 for action in ACTIONS.read().unwrap().iter() {
                     println!("{:?}", action);
                 }
+                Ok(())
             },
-            &[VK::LeftWindows, VK::LeftControl, VK::OEM2],
+            &[VK::LeftWindows, VK::LeftShift, VK::OEM2], // Win+LeftShift+?
         ),
     ]);
     actions
 }
 
-fn main() -> windows::Result<()> {
+fn main() -> eyre::Result<()> {
     {
         *ACTIONS.write().unwrap() = create_actions();
     }
 
-    let hwnd = ui::create();
-    if hwnd.is_null() {
-        return Ok(());
-    }
+    let hwnd = match ui::create() {
+        Ok(hwnd) => hwnd,
+        Err(e) => return Err(e),
+    };
+
+    println!("Win + LeftShift + D to toggle debug");
+    println!("Win + LeftShift + ? to view actions");
 
     let mut msg = MSG::default();
-    println!("Win + LeftCtrl + K to toggle debug");
-
-    unsafe {
-        while GetMessageW(&mut msg, hwnd, 0, 0).as_bool() {
-            TranslateMessage(&msg);
-            DispatchMessageW(&msg);
+    loop {
+        match get_message(&mut msg, hwnd, 0, 0).0 {
+            -1 => return Err(eyre!("GetMessageW() failed")),
+            0 => return Ok(()),
+            _ => {
+                translate_message(&msg);
+                dispatch_message(&msg);
+            }
         }
     }
-    Ok(())
 }

@@ -254,9 +254,8 @@ pub fn msg_to_string(msg: u32) -> String {
         0x0400 => "WM_USER".into(),
         value => {
             let mut s = String::new();
-            match write!(&mut s, "0x{:X}", value) {
-                _ => s,
-            }
+            let _ = write!(&mut s, "0x{:X}", value);
+            s
         }
     }
 }
