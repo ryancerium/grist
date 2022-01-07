@@ -9,7 +9,6 @@ default-target = "x86_64-pc-windows-msvc"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-bindings = { path = "bindings" }
 eyre = "0.6.5"
 lazy_static = "1.4.0"
 num = "0.4.0"
