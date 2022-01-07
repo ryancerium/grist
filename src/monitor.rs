@@ -68,7 +68,7 @@ fn move_to_adjacent_monitor(direction: Direction) -> eyre::Result<()> {
 
     let work_area = monitors[i].rcWork;
     let window_pos = RECT::from_points(work_area.top_left(), work_area.center());
-    let _ = set_window_rect(foreground_window, &window_pos, SET_WINDOW_POS_FLAGS(0));
+    let _ = set_window_rect(foreground_window, &window_pos, SET_WINDOW_POS_FLAGS::default());
     let _ = set_cursor_pos(window_pos.center().x, window_pos.center().y);
     Ok(())
 }

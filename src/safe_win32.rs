@@ -1,6 +1,7 @@
 use std::ffi::c_void;
 
 use eyre::eyre;
+use windows::core::Handle;
 use windows::Win32::Foundation::{
     CloseHandle, GetLastError, SetLastError, BOOL, HANDLE, HINSTANCE, HWND, LPARAM, LRESULT, MAX_PATH, PWSTR, RECT,
     WIN32_ERROR, WPARAM,
@@ -41,8 +42,8 @@ impl Win32ReturnIntoResult for BOOL {
 
 impl Win32ReturnIntoResult for HANDLE {
     fn into_result(self) -> eyre::Result<HANDLE> {
-        match self {
-            HANDLE(-1) => Err(std::io::Error::last_os_error().into()),
+        match self.is_invalid() {
+            true => Err(std::io::Error::last_os_error().into()),
             _ => Ok(self),
         }
     }
@@ -50,8 +51,8 @@ impl Win32ReturnIntoResult for HANDLE {
 
 impl Win32ReturnIntoResult for HHOOK {
     fn into_result(self) -> eyre::Result<HHOOK> {
-        match self {
-            HHOOK(0) => Err(std::io::Error::last_os_error().into()),
+        match self.is_invalid() {
+            true => Err(std::io::Error::last_os_error().into()),
             _ => Ok(self),
         }
     }
@@ -59,8 +60,8 @@ impl Win32ReturnIntoResult for HHOOK {
 
 impl Win32ReturnIntoResult for HINSTANCE {
     fn into_result(self) -> eyre::Result<Self> {
-        match self {
-            HINSTANCE(0) => Err(std::io::Error::last_os_error().into()),
+        match self.is_invalid() {
+            true => Err(std::io::Error::last_os_error().into()),
             _ => Ok(self),
         }
     }
@@ -68,8 +69,8 @@ impl Win32ReturnIntoResult for HINSTANCE {
 
 impl Win32ReturnIntoResult for HMENU {
     fn into_result(self) -> eyre::Result<Self> {
-        match self {
-            HMENU(0) => Err(std::io::Error::last_os_error().into()),
+        match self.is_invalid() {
+            true => Err(std::io::Error::last_os_error().into()),
             _ => Ok(self),
         }
     }
@@ -77,8 +78,8 @@ impl Win32ReturnIntoResult for HMENU {
 
 impl Win32ReturnIntoResult for HMONITOR {
     fn into_result(self) -> eyre::Result<Self> {
-        match self {
-            HMONITOR(0) => Err(std::io::Error::last_os_error().into()),
+        match self.is_invalid() {
+            true => Err(std::io::Error::last_os_error().into()),
             _ => Ok(self),
         }
     }
@@ -86,8 +87,8 @@ impl Win32ReturnIntoResult for HMONITOR {
 
 impl Win32ReturnIntoResult for HWND {
     fn into_result(self) -> eyre::Result<Self> {
-        match self.0 {
-            0 => Err(std::io::Error::last_os_error().into()),
+        match self.is_invalid() {
+            true => Err(std::io::Error::last_os_error().into()),
             _ => Ok(self),
         }
     }
@@ -191,7 +192,7 @@ pub fn enum_display_monitors() -> eyre::Result<Vec<MONITORINFO>> {
     let mut monitors = Vec::new();
     unsafe {
         let success = EnumDisplayMonitors(
-            HDC(0),
+            HDC::default(),
             std::ptr::null_mut(),
             Some(enum_display_monitors_callback),
             LPARAM(&mut monitors as *mut Vec<MONITORINFO> as isize),
@@ -217,7 +218,7 @@ pub fn get_module_handle(lpmodulename: PWSTR) -> eyre::Result<HINSTANCE> {
 
 pub fn get_module_file_name(hprocess: HANDLE) -> eyre::Result<String> {
     let mut filename: [u16; MAX_PATH as usize] = [0; MAX_PATH as usize];
-    match unsafe { K32GetModuleFileNameExW(hprocess, HINSTANCE(0), PWSTR(filename.as_mut_ptr()), MAX_PATH) } {
+    match unsafe { K32GetModuleFileNameExW(hprocess, HINSTANCE::default(), PWSTR(filename.as_mut_ptr()), MAX_PATH) } {
         0 => Err(std::io::Error::last_os_error().into()),
         _ => match String::from_utf16(&filename) {
             Ok(s) => Ok(s),
@@ -252,7 +253,7 @@ pub fn get_window_rect(hwnd: HWND) -> eyre::Result<RECT> {
 
 pub fn get_window_text_length(hwnd: HWND) -> eyre::Result<i32> {
     unsafe {
-        SetLastError(WIN32_ERROR(0));
+        SetLastError(WIN32_ERROR::default());
 
         let text_length: i32 = GetWindowTextLengthW(hwnd);
         if text_length > 0 {
@@ -331,7 +332,7 @@ pub fn set_foreground_window(hwnd: HWND) -> eyre::Result<BOOL> {
 
 pub fn set_window_long_ptr(hwnd: HWND, nindex: WINDOW_LONG_PTR_INDEX, dwnewlong: isize) -> eyre::Result<isize> {
     unsafe {
-        SetLastError(WIN32_ERROR(0));
+        SetLastError(WIN32_ERROR::default());
 
         let previous = SetWindowLongPtrW(hwnd, nindex, dwnewlong);
         if previous != 0 {

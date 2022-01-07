@@ -22,6 +22,7 @@ use windows::Win32::UI::WindowsAndMessaging::{
     WTS_REMOTE_CONNECT, WTS_REMOTE_DISCONNECT, WTS_SESSION_CREATE, WTS_SESSION_LOCK, WTS_SESSION_LOGOFF,
     WTS_SESSION_LOGON, WTS_SESSION_REMOTE_CONTROL, WTS_SESSION_TERMINATE, WTS_SESSION_UNLOCK,
 };
+use windows::core::Handle;
 
 const NOTIFY_FOR_THIS_SESSION: u32 = 0x00000000;
 
@@ -38,7 +39,7 @@ fn grist_app_from_hwnd(hwnd: &mut HWND) -> &mut GristApp {
 
 fn load_icon(name: &str) -> eyre::Result<HICON> {
     unsafe {
-        LoadImageW(HINSTANCE(0), name, IMAGE_ICON, 0, 0, LR_LOADFROMFILE | LR_DEFAULTSIZE)
+        LoadImageW(HINSTANCE::default(), name, IMAGE_ICON, 0, 0, LR_LOADFROMFILE | LR_DEFAULTSIZE)
             .into_result()
             .map(|handle| HICON(handle.0))
     }
@@ -185,7 +186,7 @@ extern "system" fn wndproc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM)
                     return def_window_proc(hwnd, msg, wparam, lparam);
                 }
             };
-            let mut grist_app = Box::new(GristApp { nid, hook: HHOOK(0) });
+            let mut grist_app = Box::new(GristApp { nid, hook: HHOOK::default() });
             grist_app.hook_keyboard();
             let _ = set_window_long_ptr(hwnd, WINDOW_LONG_PTR_INDEX(0), Box::into_raw(grist_app) as isize);
         }
@@ -216,7 +217,7 @@ extern "system" fn wndproc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM)
 unsafe extern "system" fn low_level_keyboard_proc(n_code: i32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
     if n_code < 0 {
         println!("low_level_keyboard_proc(): ncode < 0");
-        return call_next_hook(HHOOK(0), n_code, wparam, lparam);
+        return call_next_hook(HHOOK::default(), n_code, wparam, lparam);
     }
 
     let vk_code = (*(lparam.0 as *const KBDLLHOOKSTRUCT)).vkCode;
@@ -259,7 +260,7 @@ unsafe extern "system" fn low_level_keyboard_proc(n_code: i32, wparam: WPARAM, l
             }
             LRESULT(1)
         }
-        None => call_next_hook(HHOOK(0), n_code, wparam, lparam),
+        None => call_next_hook(HHOOK::default(), n_code, wparam, lparam),
     }
 }
 
@@ -274,16 +275,16 @@ pub fn create() -> eyre::Result<HWND> {
         lpszClassName: PWSTR(name.as_mut_ptr()),
         cbClsExtra: 0,
         cbWndExtra: std::mem::size_of::<*mut GristApp>() as i32,
-        hIcon: HICON(0),
-        hCursor: HCURSOR(0),
-        hbrBackground: HBRUSH(0),
+        hIcon: HICON::default(),
+        hCursor: HCURSOR::default(),
+        hbrBackground: HBRUSH::default(),
         lpszMenuName: PWSTR(std::ptr::null_mut()),
     };
 
     register_class(&wnd_class)?;
 
     create_window(
-        WINDOW_EX_STYLE(0),
+        WINDOW_EX_STYLE::default(),
         PWSTR(name.as_mut_ptr()),
         PWSTR(name.as_mut_ptr()),
         WS_OVERLAPPEDWINDOW,
@@ -291,8 +292,8 @@ pub fn create() -> eyre::Result<HWND> {
         CW_USEDEFAULT,
         CW_USEDEFAULT,
         CW_USEDEFAULT,
-        HWND(0),
-        HMENU(0),
+        HWND::default(),
+        HMENU::default(),
         hinstance,
         std::ptr::null_mut(),
     )
@@ -304,18 +305,18 @@ struct GristApp {
 
 impl GristApp {
     pub fn unhook_keyboard(&mut self) {
-        if self.hook == HHOOK(0) {
+        if self.hook.is_invalid() {
             println!("Keyboard wasn't hooked!");
             return;
         }
 
         let _ = unhook_windows_hook_ex(self.hook);
-        self.hook = HHOOK(0);
+        self.hook = HHOOK::default();
         println!("Unhooked keyboard events");
     }
 
     pub fn hook_keyboard(&mut self) {
-        if self.hook != HHOOK(0) {
+        if !self.hook.is_invalid() {
             println!("Keyboard was already hooked!");
             return;
         }
@@ -332,7 +333,7 @@ impl GristApp {
         }
 
         println!("Failed to hook keyboard events");
-        self.hook = HHOOK(0);
+        self.hook = HHOOK::default();
     }
 
     pub fn rehook_keyboard(&mut self) {

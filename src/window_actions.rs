@@ -80,7 +80,7 @@ pub fn set_window_rect(hwnd: HWND, position: &RECT, flags: SET_WINDOW_POS_FLAGS)
     let margin = calculate_margin(hwnd)?;
     set_window_pos(
         hwnd,
-        HWND(0),
+        HWND::default(),
         position.left + margin.left,
         position.top + margin.top,
         position.width() + margin.right - margin.left,
