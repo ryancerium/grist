@@ -22,11 +22,8 @@ type WorkAreaToWindowPosFn = dyn Fn(&RECT) -> RECT;
 
 fn get_window_executable(hwnd: HWND) -> eyre::Result<String> {
     let thread_process_id = get_window_thread_process_id(hwnd);
-    let process_handle = open_process(
-        PROCESS_QUERY_INFORMATION | PROCESS_VM_READ,
-        false,
-        thread_process_id.process_id,
-    )?;
+    let process_handle =
+        open_process(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, false, thread_process_id.process_id)?;
     let filename = get_module_file_name(process_handle);
     let _ = close_handle(process_handle);
     filename
@@ -61,11 +58,7 @@ pub fn add_actions(actions: &mut Vec<HotkeyAction>) {
         HotkeyAction::new("South", south, &[VK::LeftWindows, VK::N6]),
         HotkeyAction::new("Maximize", maximize, &[VK::LeftWindows, VK::Up]),
         HotkeyAction::new("Minimize", minimize, &[VK::LeftWindows, VK::Down]),
-        HotkeyAction::new(
-            "Clear Topmost Flag",
-            clear_topmost,
-            &[VK::LeftWindows, VK::LeftShift, VK::Z],
-        ),
+        HotkeyAction::new("Clear Topmost Flag", clear_topmost, &[VK::LeftWindows, VK::LeftShift, VK::Z]),
         HotkeyAction::new(
             "Print Window Flags",
             print_window_flags,
@@ -163,10 +156,7 @@ pub fn clear_topmost() -> eyre::Result<()> {
 pub fn print_window_flags() -> eyre::Result<()> {
     get_foreground_window()
         .and_then(|hwnd| {
-            println!(
-                "Styles for '{}'",
-                get_window_text(hwnd).unwrap_or_else(|_| "".to_owned())
-            );
+            println!("Styles for '{}'", get_window_text(hwnd).unwrap_or_else(|_| "".to_owned()));
             let styles = WINDOW_STYLE(get_window_long_ptr(hwnd, GWL_STYLE)? as u32);
             PRINT_STYLE!(styles, WS_BORDER);
             PRINT_STYLE!(styles, WS_CAPTION);

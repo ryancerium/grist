@@ -41,6 +41,15 @@ lazy_static! {
         RwLock::new(BTreeSet::<hotkey_action::VK>::new());
 }
 
+fn print_pressed_keys() {
+    let pressed_keys = PRESSED_KEYS.read().unwrap();
+    let s = pressed_keys.iter().fold(String::new(), |mut s, i| {
+        let _ = std::fmt::write(&mut s, format_args!("{:?} ", *i));
+        s
+    });
+    println!("Pressed keys: [{}]", s);
+}
+
 fn create_actions() -> Vec<HotkeyAction> {
     let mut actions = Vec::new();
 

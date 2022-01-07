@@ -58,24 +58,15 @@ impl Cardinal for RECT {
     }
 
     fn top_left(&self) -> POINT {
-        POINT {
-            x: self.left,
-            y: self.top,
-        }
+        POINT { x: self.left, y: self.top }
     }
 
     fn top_right(&self) -> POINT {
-        POINT {
-            x: self.right,
-            y: self.top,
-        }
+        POINT { x: self.right, y: self.top }
     }
 
     fn bottom_left(&self) -> POINT {
-        POINT {
-            x: self.left,
-            y: self.bottom,
-        }
+        POINT { x: self.left, y: self.bottom }
     }
 
     fn bottom_right(&self) -> POINT {

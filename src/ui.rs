@@ -4,8 +4,9 @@ use crate::safe_win32::{
     shell_notify_icon, track_popup_menu, unhook_windows_hook_ex, wts_register_session_notification,
     wts_unregister_session_notification, Win32ReturnIntoResult,
 };
-use crate::{hotkey_action, msg, ACTIONS, DEBUG, PRESSED_KEYS};
+use crate::{hotkey_action, msg, print_pressed_keys, ACTIONS, DEBUG, PRESSED_KEYS};
 use num::FromPrimitive;
+use windows::core::Handle;
 use windows::Win32::Foundation::{HINSTANCE, HWND, LPARAM, LRESULT, PWSTR, WPARAM};
 use windows::Win32::Graphics::Gdi::HBRUSH;
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
@@ -22,7 +23,6 @@ use windows::Win32::UI::WindowsAndMessaging::{
     WTS_REMOTE_CONNECT, WTS_REMOTE_DISCONNECT, WTS_SESSION_CREATE, WTS_SESSION_LOCK, WTS_SESSION_LOGOFF,
     WTS_SESSION_LOGON, WTS_SESSION_REMOTE_CONTROL, WTS_SESSION_TERMINATE, WTS_SESSION_UNLOCK,
 };
-use windows::core::Handle;
 
 const NOTIFY_FOR_THIS_SESSION: u32 = 0x00000000;
 
@@ -30,6 +30,7 @@ const NOTIFY_FOR_THIS_SESSION: u32 = 0x00000000;
 const WM_CLICK_NOTIFY_ICON: u32 = WM_APP + 1;
 const MENU_EXIT: usize = 0x00;
 const MENU_RELOAD: usize = 0x01;
+const MENU_PRINT_KEYS: usize = 0x02;
 
 fn grist_app_from_hwnd(hwnd: &mut HWND) -> &mut GristApp {
     get_window_long_ptr(*hwnd, WINDOW_LONG_PTR_INDEX(0))
@@ -106,8 +107,9 @@ fn on_notification_icon(hwnd: HWND, wparam: WPARAM, lparam: LPARAM) -> eyre::Res
             let x = GET_X_LPARAM(wparam.0 as u32);
             let y = GET_Y_LPARAM(wparam.0 as u32);
             let hmenu = create_popup_menu()?;
-            let _ = insert_menu(hmenu, 0, MF_BYPOSITION | MF_STRING, MENU_RELOAD as usize, "Reload")?;
-            let _ = insert_menu(hmenu, 1, MF_BYPOSITION | MF_STRING, MENU_EXIT as usize, "Exit")?;
+            let _ = insert_menu(hmenu, 0, MF_BYPOSITION | MF_STRING, MENU_PRINT_KEYS as usize, "Print Keys")?;
+            let _ = insert_menu(hmenu, 1, MF_BYPOSITION | MF_STRING, MENU_RELOAD as usize, "Reload")?;
+            let _ = insert_menu(hmenu, 2, MF_BYPOSITION | MF_STRING, MENU_EXIT as usize, "Exit")?;
             let _ = set_foreground_window(hwnd)?;
             track_popup_menu(
                 hmenu,
@@ -135,6 +137,9 @@ fn on_wm_command(wparam: WPARAM, hwnd: &mut HWND) {
         }
         WPARAM(MENU_RELOAD) => {
             grist_app_from_hwnd(hwnd).rehook_keyboard();
+        }
+        WPARAM(MENU_PRINT_KEYS) => {
+            print_pressed_keys();
         }
         _ => (),
     }
@@ -201,12 +206,7 @@ extern "system" fn wndproc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM)
         WM_WTSSESSION_CHANGE => on_wtssession_change(&mut hwnd, msg, wparam, lparam),
         _ => {
             if msg != WM_ENTERIDLE && lparam != LPARAM(WM_MOUSEMOVE as isize) {
-                println!(
-                    "{:>30} w: 0x{:X} l: 0x{:X}",
-                    msg::msg_to_string(msg),
-                    wparam.0,
-                    lparam.0
-                );
+                println!("{:>30} w: 0x{:X} l: 0x{:X}", msg::msg_to_string(msg), wparam.0, lparam.0);
             }
         }
     };
@@ -220,47 +220,38 @@ unsafe extern "system" fn low_level_keyboard_proc(n_code: i32, wparam: WPARAM, l
         return call_next_hook(HHOOK::default(), n_code, wparam, lparam);
     }
 
+    let msg = wparam.0 as u32;
     let vk_code = (*(lparam.0 as *const KBDLLHOOKSTRUCT)).vkCode;
 
-    {
-        let mut pressed_keys = PRESSED_KEYS.write().unwrap();
-
-        match hotkey_action::VK::from_u32(vk_code) {
-            Some(vk_code) => match wparam.0 as u32 {
-                WM_KEYDOWN | WM_SYSKEYDOWN => pressed_keys.insert(vk_code),
-                WM_KEYUP | WM_SYSKEYUP => pressed_keys.remove(&vk_code),
-                _ => true,
-            },
+    if let Some(vk_code) = hotkey_action::VK::from_u32(vk_code) {
+        match msg {
+            WM_KEYDOWN | WM_SYSKEYDOWN => PRESSED_KEYS.write().unwrap().insert(vk_code),
+            WM_KEYUP | WM_SYSKEYUP => PRESSED_KEYS.write().unwrap().remove(&vk_code),
             _ => true,
-        };
-    }
-
-    let pressed_keys = PRESSED_KEYS.read().unwrap();
-    {
-        let debug = DEBUG.load(std::sync::atomic::Ordering::Relaxed);
-        let msg = wparam.0 as u32;
-        if debug && (msg == WM_KEYDOWN || msg == WM_SYSKEYDOWN) {
-            let s = pressed_keys.iter().fold(String::new(), |mut s, i| {
-                let _ = std::fmt::write(&mut s, format_args!("{:?} ", *i));
-                s
-            });
-            println!("{}", s);
         }
+    } else {
+        // How did we get an invalid VK_CODE?
+        return call_next_hook(HHOOK::default(), n_code, wparam, lparam);
+    };
+
+    // Print the current keys if debug is enabled
+    if (msg == WM_KEYDOWN || msg == WM_SYSKEYDOWN) && DEBUG.load(std::sync::atomic::Ordering::Relaxed) {
+        print_pressed_keys();
     }
 
-    match ACTIONS
+    // Trigger the matching actions
+    if let Some(action) = ACTIONS
         .read()
         .unwrap()
         .iter()
-        .find(|hotkey_action| hotkey_action.trigger == *pressed_keys)
+        .find(|hotkey_action| hotkey_action.trigger == *PRESSED_KEYS.read().unwrap())
     {
-        Some(action) => {
-            if let Err(error) = (action.action)() {
-                println!("{:?}", error);
-            }
-            LRESULT(1)
+        if let Err(error) = (action.action)() {
+            println!("{:?}", error);
         }
-        None => call_next_hook(HHOOK::default(), n_code, wparam, lparam),
+        LRESULT(1)
+    } else {
+        call_next_hook(HHOOK::default(), n_code, wparam, lparam)
     }
 }
 
