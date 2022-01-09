@@ -174,34 +174,36 @@ pub fn dwm_get_window_attribute_extended_frame_bounds(hwnd: HWND) -> eyre::Resul
 }
 
 pub fn enum_display_monitors() -> eyre::Result<Vec<MONITORINFO>> {
+    // Callback function for the Win32 EnumDisplayMonitors function
     unsafe extern "system" fn enum_display_monitors_callback(
-        h_monitor: HMONITOR,
+        hmonitor: HMONITOR,
         _hdc: HDC,
         _rect: *mut RECT,
-        _dw_data: LPARAM,
+        monitors: LPARAM,
     ) -> BOOL {
-        let monitor_info = match get_monitor_info(h_monitor) {
+        let monitor_info = match get_monitor_info(hmonitor) {
             Ok(monitor_info) => monitor_info,
             Err(_) => return false.into(),
         };
-        let monitors = &mut *(_dw_data.0 as *mut Vec<MONITORINFO>);
+        let monitors = &mut *(monitors.0 as *mut Vec<MONITORINFO>);
         monitors.push(monitor_info);
         true.into()
     }
 
     let mut monitors = Vec::new();
-    unsafe {
-        let success = EnumDisplayMonitors(
+    let success = unsafe {
+        EnumDisplayMonitors(
             HDC::default(),
             std::ptr::null_mut(),
             Some(enum_display_monitors_callback),
             LPARAM(&mut monitors as *mut Vec<MONITORINFO> as isize),
-        );
-        if !success.as_bool() {
-            return Err(eyre!("EnumDisplayMonitors() failed"));
-        }
+        )
+    };
+
+    match success.as_bool() {
+        true => Ok(monitors),
+        false => Err(eyre!("EnumDisplayMonitors() failed")),
     }
-    Ok(monitors)
 }
 
 pub fn get_foreground_window() -> eyre::Result<HWND> {
@@ -346,6 +348,7 @@ pub fn set_window_long_ptr(hwnd: HWND, nindex: WINDOW_LONG_PTR_INDEX, dwnewlong:
         Err(std::io::Error::last_os_error().into())
     }
 }
+
 pub fn set_window_pos(
     hwnd: HWND,
     hwndinsertafter: HWND,

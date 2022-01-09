@@ -289,6 +289,7 @@ pub fn create() -> eyre::Result<HWND> {
         std::ptr::null_mut(),
     )
 }
+
 struct GristApp {
     nid: NOTIFYICONDATAW,
     hook: HHOOK,

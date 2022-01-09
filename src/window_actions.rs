@@ -21,9 +21,8 @@ use windows::Win32::UI::WindowsAndMessaging::{
 type WorkAreaToWindowPosFn = dyn Fn(&RECT) -> RECT;
 
 fn get_window_executable(hwnd: HWND) -> eyre::Result<String> {
-    let thread_process_id = get_window_thread_process_id(hwnd);
-    let process_handle =
-        open_process(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, false, thread_process_id.process_id)?;
+    let tpid = get_window_thread_process_id(hwnd);
+    let process_handle = open_process(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, false, tpid.process_id)?;
     let filename = get_module_file_name(process_handle);
     let _ = close_handle(process_handle);
     filename
@@ -59,11 +58,7 @@ pub fn add_actions(actions: &mut Vec<HotkeyAction>) {
         HotkeyAction::new("Maximize", maximize, &[VK::LeftWindows, VK::Up]),
         HotkeyAction::new("Minimize", minimize, &[VK::LeftWindows, VK::Down]),
         HotkeyAction::new("Clear Topmost Flag", clear_topmost, &[VK::LeftWindows, VK::LeftShift, VK::Z]),
-        HotkeyAction::new(
-            "Print Window Flags",
-            print_window_flags,
-            &[VK::LeftWindows, VK::LeftShift, VK::F],
-        ),
+        HotkeyAction::new("Print Flags", print_window_flags, &[VK::LeftWindows, VK::LeftShift, VK::F]),
     ]);
 }
 
