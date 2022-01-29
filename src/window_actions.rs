@@ -8,10 +8,10 @@ use windows::Win32::Graphics::Gdi::MONITOR_DEFAULTTOPRIMARY;
 use windows::Win32::System::Threading::{PROCESS_QUERY_INFORMATION, PROCESS_VM_READ};
 use windows::Win32::UI::WindowsAndMessaging::{
     GWL_EXSTYLE, GWL_STYLE, HWND_NOTOPMOST, SET_WINDOW_POS_FLAGS, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER, SW_MAXIMIZE,
-    SW_MINIMIZE, SW_RESTORE, WINDOW_EX_STYLE, WINDOW_STYLE, WS_BORDER, WS_CAPTION, WS_CHILD, WS_CHILDWINDOW,
-    WS_CLIPCHILDREN, WS_CLIPSIBLINGS, WS_DISABLED, WS_DLGFRAME, WS_EX_ACCEPTFILES, WS_EX_APPWINDOW, WS_EX_CLIENTEDGE,
-    WS_EX_COMPOSITED, WS_EX_CONTEXTHELP, WS_EX_CONTROLPARENT, WS_EX_DLGMODALFRAME, WS_EX_LAYERED, WS_EX_LAYOUTRTL,
-    WS_EX_LEFT, WS_EX_LEFTSCROLLBAR, WS_EX_LTRREADING, WS_EX_MDICHILD, WS_EX_NOACTIVATE, WS_EX_NOINHERITLAYOUT,
+    SW_MINIMIZE, SW_RESTORE, WS_BORDER, WS_CAPTION, WS_CHILD, WS_CHILDWINDOW, WS_CLIPCHILDREN, WS_CLIPSIBLINGS,
+    WS_DISABLED, WS_DLGFRAME, WS_EX_ACCEPTFILES, WS_EX_APPWINDOW, WS_EX_CLIENTEDGE, WS_EX_COMPOSITED,
+    WS_EX_CONTEXTHELP, WS_EX_CONTROLPARENT, WS_EX_DLGMODALFRAME, WS_EX_LAYERED, WS_EX_LAYOUTRTL, WS_EX_LEFT,
+    WS_EX_LEFTSCROLLBAR, WS_EX_LTRREADING, WS_EX_MDICHILD, WS_EX_NOACTIVATE, WS_EX_NOINHERITLAYOUT,
     WS_EX_NOPARENTNOTIFY, WS_EX_NOREDIRECTIONBITMAP, WS_EX_RIGHT, WS_EX_RIGHTSCROLLBAR, WS_EX_RTLREADING,
     WS_EX_STATICEDGE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_EX_TRANSPARENT, WS_EX_WINDOWEDGE, WS_GROUP, WS_HSCROLL,
     WS_ICONIC, WS_MAXIMIZE, WS_MAXIMIZEBOX, WS_MINIMIZE, WS_MINIMIZEBOX, WS_OVERLAPPED, WS_POPUP, WS_POPUPWINDOW,
@@ -90,7 +90,7 @@ fn calculate_margin(hwnd: HWND) -> eyre::Result<RECT> {
 }
 
 fn set_window_pos_action(workarea_to_window_pos: &WorkAreaToWindowPosFn) -> eyre::Result<()> {
-    let foreground_window = get_foreground_window_not_zoom()?;
+    let foreground_window = get_foreground_window()?;
     let monitor_info = get_monitor_info(monitor_from_window(foreground_window, MONITOR_DEFAULTTOPRIMARY)?)?;
     let window_pos = workarea_to_window_pos(&monitor_info.rcWork);
     let _ = set_window_rect(foreground_window, &window_pos, SWP_NOZORDER)?;
@@ -131,7 +131,7 @@ fn south() -> eyre::Result<()> {
 }
 
 fn maximize() -> eyre::Result<()> {
-    get_foreground_window_not_zoom()
+    get_foreground_window()
         .and_then(|hwnd| show_window(hwnd, SW_MAXIMIZE))
         .map(|_| ())
 }
@@ -143,7 +143,7 @@ fn minimize() -> eyre::Result<()> {
 }
 
 pub fn clear_topmost() -> eyre::Result<()> {
-    get_foreground_window_not_zoom()
+    get_foreground_window()
         .and_then(|hwnd| set_window_pos(hwnd, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE))
         .map(|_| ())
 }
@@ -152,7 +152,7 @@ pub fn print_window_flags() -> eyre::Result<()> {
     get_foreground_window()
         .and_then(|hwnd| {
             println!("Styles for '{}'", get_window_text(hwnd).unwrap_or_else(|_| "".to_owned()));
-            let styles = WINDOW_STYLE(get_window_long_ptr(hwnd, GWL_STYLE)? as u32);
+            let styles = get_window_long_ptr(hwnd, GWL_STYLE)? as u32;
             PRINT_STYLE!(styles, WS_BORDER);
             PRINT_STYLE!(styles, WS_CAPTION);
             PRINT_STYLE!(styles, WS_CHILD);
@@ -181,7 +181,7 @@ pub fn print_window_flags() -> eyre::Result<()> {
             PRINT_STYLE!(styles, WS_VISIBLE);
             PRINT_STYLE!(styles, WS_VSCROLL);
 
-            let styles = WINDOW_EX_STYLE(get_window_long_ptr(hwnd, GWL_EXSTYLE)? as u32);
+            let styles = get_window_long_ptr(hwnd, GWL_EXSTYLE)? as u32;
             PRINT_STYLE!(styles, WS_EX_ACCEPTFILES);
             PRINT_STYLE!(styles, WS_EX_APPWINDOW);
             PRINT_STYLE!(styles, WS_EX_CLIENTEDGE);

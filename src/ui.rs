@@ -6,7 +6,6 @@ use crate::safe_win32::{
 };
 use crate::{hotkey_action, msg, print_pressed_keys, ACTIONS, DEBUG, PRESSED_KEYS};
 use num::FromPrimitive;
-use windows::core::Handle;
 use windows::Win32::Foundation::{HINSTANCE, HWND, LPARAM, LRESULT, PWSTR, WPARAM};
 use windows::Win32::Graphics::Gdi::HBRUSH;
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
@@ -31,9 +30,10 @@ const WM_CLICK_NOTIFY_ICON: u32 = WM_APP + 1;
 const MENU_EXIT: usize = 0x00;
 const MENU_RELOAD: usize = 0x01;
 const MENU_PRINT_KEYS: usize = 0x02;
+const GRIST_INDEX: WINDOW_LONG_PTR_INDEX = 0;
 
 fn grist_app_from_hwnd(hwnd: &mut HWND) -> &mut GristApp {
-    get_window_long_ptr(*hwnd, WINDOW_LONG_PTR_INDEX(0))
+    get_window_long_ptr(*hwnd, GRIST_INDEX)
         .map(|ptr| unsafe { &mut *(ptr as *mut GristApp) })
         .unwrap()
 }
@@ -130,7 +130,7 @@ fn on_notification_icon(hwnd: HWND, wparam: WPARAM, lparam: LPARAM) -> eyre::Res
 fn on_wm_command(wparam: WPARAM, hwnd: &mut HWND) {
     match wparam {
         WPARAM(MENU_EXIT) => {
-            if let Ok(ptr) = get_window_long_ptr(*hwnd, WINDOW_LONG_PTR_INDEX(0)) {
+            if let Ok(ptr) = get_window_long_ptr(*hwnd, GRIST_INDEX) {
                 let _grist_app = unsafe { Box::from_raw(ptr as *mut GristApp) };
             }
             post_message(*hwnd, WM_QUIT, WPARAM(0), LPARAM(0));
@@ -193,11 +193,11 @@ extern "system" fn wndproc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM)
             };
             let mut grist_app = Box::new(GristApp { nid, hook: HHOOK::default() });
             grist_app.hook_keyboard();
-            let _ = set_window_long_ptr(hwnd, WINDOW_LONG_PTR_INDEX(0), Box::into_raw(grist_app) as isize);
+            let _ = set_window_long_ptr(hwnd, GRIST_INDEX, Box::into_raw(grist_app) as isize);
         }
         WM_DESTROY => {
             let _ = wts_unregister_session_notification(hwnd);
-            if let Ok(ptr) = get_window_long_ptr(hwnd, WINDOW_LONG_PTR_INDEX(0)) {
+            if let Ok(ptr) = get_window_long_ptr(hwnd, GRIST_INDEX) {
                 let _grist_app = unsafe { Box::from_raw(ptr as *mut GristApp) };
             }
         }

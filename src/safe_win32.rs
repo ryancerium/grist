@@ -1,10 +1,9 @@
 use std::ffi::c_void;
 
 use eyre::eyre;
-use windows::core::Handle;
 use windows::Win32::Foundation::{
-    CloseHandle, GetLastError, SetLastError, BOOL, HANDLE, HINSTANCE, HWND, LPARAM, LRESULT, MAX_PATH, PWSTR, RECT,
-    WIN32_ERROR, WPARAM,
+    CloseHandle, GetLastError, SetLastError, BOOL, HANDLE, HINSTANCE, HWND, LPARAM, LRESULT, MAX_PATH, NO_ERROR, PWSTR,
+    RECT, WIN32_ERROR, WPARAM,
 };
 use windows::Win32::Graphics::Dwm::{DwmGetWindowAttribute, DWMWA_EXTENDED_FRAME_BOUNDS};
 use windows::Win32::Graphics::Gdi::{
@@ -255,14 +254,14 @@ pub fn get_window_rect(hwnd: HWND) -> eyre::Result<RECT> {
 
 pub fn get_window_text_length(hwnd: HWND) -> eyre::Result<i32> {
     unsafe {
-        SetLastError(WIN32_ERROR::default());
+        SetLastError(NO_ERROR);
 
         let text_length: i32 = GetWindowTextLengthW(hwnd);
         if text_length > 0 {
             return Ok(text_length);
         }
 
-        if GetLastError().0 == 0 {
+        if GetLastError() == NO_ERROR {
             return Ok(0);
         }
 
@@ -334,14 +333,14 @@ pub fn set_foreground_window(hwnd: HWND) -> eyre::Result<BOOL> {
 
 pub fn set_window_long_ptr(hwnd: HWND, nindex: WINDOW_LONG_PTR_INDEX, dwnewlong: isize) -> eyre::Result<isize> {
     unsafe {
-        SetLastError(WIN32_ERROR::default());
+        SetLastError(NO_ERROR);
 
         let previous = SetWindowLongPtrW(hwnd, nindex, dwnewlong);
         if previous != 0 {
             return Ok(previous);
         }
 
-        if GetLastError().0 == 0 {
+        if GetLastError() == NO_ERROR {
             return Ok(0);
         }
 
@@ -363,7 +362,7 @@ pub fn set_window_pos(
 
 pub fn set_windows_hook(
     idhook: WINDOWS_HOOK_ID,
-    lpfn: Option<HOOKPROC>,
+    lpfn: HOOKPROC,
     hmod: HINSTANCE,
     dwthreadid: u32,
 ) -> eyre::Result<HHOOK> {

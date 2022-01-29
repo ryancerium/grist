@@ -1,7 +1,9 @@
 use crate::cardinal::Cardinal;
 use crate::hotkey_action::{HotkeyAction, VK};
-use crate::safe_win32::{enum_display_monitors, get_monitor_info, monitor_from_window, set_cursor_pos};
-use crate::window_actions::{get_foreground_window_not_zoom, set_window_rect};
+use crate::safe_win32::{
+    enum_display_monitors, get_foreground_window, get_monitor_info, monitor_from_window, set_cursor_pos,
+};
+use crate::window_actions::set_window_rect;
 use windows::Win32::Foundation::RECT;
 use windows::Win32::Graphics::Gdi::MONITOR_DEFAULTTOPRIMARY;
 use windows::Win32::UI::WindowsAndMessaging::SET_WINDOW_POS_FLAGS;
@@ -50,7 +52,7 @@ fn move_to_adjacent_monitor(direction: Direction) -> eyre::Result<()> {
         false => lhs.rcWork.left.cmp(&rhs.rcWork.left),
     });
 
-    let foreground_window = get_foreground_window_not_zoom()?;
+    let foreground_window = get_foreground_window()?;
     let monitor_info = get_monitor_info(monitor_from_window(foreground_window, MONITOR_DEFAULTTOPRIMARY)?)?;
 
     let i = direction.apply(
