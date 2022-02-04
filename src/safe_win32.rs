@@ -3,7 +3,7 @@ use std::ffi::c_void;
 use eyre::eyre;
 use windows::Win32::Foundation::{
     CloseHandle, GetLastError, SetLastError, BOOL, HANDLE, HINSTANCE, HWND, LPARAM, LRESULT, MAX_PATH, NO_ERROR, PWSTR,
-    RECT, WIN32_ERROR, WPARAM,
+    RECT, WPARAM,
 };
 use windows::Win32::Graphics::Dwm::{DwmGetWindowAttribute, DWMWA_EXTENDED_FRAME_BOUNDS};
 use windows::Win32::Graphics::Gdi::{

@@ -16,11 +16,10 @@ mod macros;
 
 // Import external crate macros
 #[macro_use]
-extern crate lazy_static;
-#[macro_use]
 extern crate num_derive;
 
 use eyre::eyre;
+use once_cell::sync::Lazy;
 
 // Import crate members
 use crate::safe_win32::{dispatch_message, get_message, translate_message};
@@ -34,12 +33,9 @@ use std::{
 };
 use windows::Win32::UI::WindowsAndMessaging::MSG;
 
-lazy_static! {
-    static ref ACTIONS: RwLock<Vec<HotkeyAction>> = RwLock::default();
-    pub static ref DEBUG: AtomicBool = AtomicBool::new(false);
-    pub static ref PRESSED_KEYS: RwLock<BTreeSet<hotkey_action::VK>> =
-        RwLock::new(BTreeSet::<hotkey_action::VK>::new());
-}
+static ACTIONS: Lazy<RwLock<Vec<HotkeyAction>>> = Lazy::new(RwLock::default);
+static DEBUG: Lazy<AtomicBool> = Lazy::new(AtomicBool::default);
+static PRESSED_KEYS: Lazy<RwLock<BTreeSet<hotkey_action::VK>>> = Lazy::new(RwLock::default);
 
 fn print_pressed_keys() {
     let pressed_keys = PRESSED_KEYS.read().unwrap();
