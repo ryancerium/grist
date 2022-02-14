@@ -31,7 +31,7 @@ use std::{
         RwLock,
     },
 };
-use windows::Win32::UI::WindowsAndMessaging::MSG;
+use windows::Win32::{UI::WindowsAndMessaging::MSG, Foundation::BOOL};
 
 static ACTIONS: Lazy<RwLock<Vec<HotkeyAction>>> = Lazy::new(RwLock::default);
 static DEBUG: Lazy<AtomicBool> = Lazy::new(AtomicBool::default);
@@ -92,9 +92,9 @@ fn main() -> eyre::Result<()> {
 
     let mut msg = MSG::default();
     loop {
-        match get_message(&mut msg, hwnd, 0, 0).0 {
-            -1 => return Err(eyre!("GetMessageW() failed")),
-            0 => return Ok(()),
+        match get_message(&mut msg, hwnd, 0, 0) {
+            BOOL(-1) => return Err(eyre!("GetMessageW() failed")),
+            BOOL(0) => return Ok(()),
             _ => {
                 translate_message(&msg);
                 dispatch_message(&msg);
