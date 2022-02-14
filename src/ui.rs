@@ -30,7 +30,7 @@ const WM_CLICK_NOTIFY_ICON: u32 = WM_APP + 1;
 const MENU_EXIT: usize = 0x00;
 const MENU_RELOAD: usize = 0x01;
 const MENU_PRINT_KEYS: usize = 0x02;
-const GRIST_INDEX: WINDOW_LONG_PTR_INDEX = 0;
+const GRIST_INDEX: WINDOW_LONG_PTR_INDEX = WINDOW_LONG_PTR_INDEX(0);
 
 fn grist_app_from_hwnd(hwnd: &mut HWND) -> &mut GristApp {
     get_window_long_ptr(*hwnd, GRIST_INDEX)

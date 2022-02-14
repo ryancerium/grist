@@ -15,7 +15,7 @@ use windows::Win32::UI::WindowsAndMessaging::{
     WS_EX_NOPARENTNOTIFY, WS_EX_NOREDIRECTIONBITMAP, WS_EX_RIGHT, WS_EX_RIGHTSCROLLBAR, WS_EX_RTLREADING,
     WS_EX_STATICEDGE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_EX_TRANSPARENT, WS_EX_WINDOWEDGE, WS_GROUP, WS_HSCROLL,
     WS_ICONIC, WS_MAXIMIZE, WS_MAXIMIZEBOX, WS_MINIMIZE, WS_MINIMIZEBOX, WS_OVERLAPPED, WS_POPUP, WS_POPUPWINDOW,
-    WS_SIZEBOX, WS_SYSMENU, WS_TABSTOP, WS_THICKFRAME, WS_TILED, WS_VISIBLE, WS_VSCROLL,
+    WS_SIZEBOX, WS_SYSMENU, WS_TABSTOP, WS_THICKFRAME, WS_TILED, WS_VISIBLE, WS_VSCROLL, WINDOW_STYLE, WINDOW_EX_STYLE,
 };
 
 type WorkAreaToWindowPosFn = dyn Fn(&RECT) -> RECT;
@@ -156,7 +156,7 @@ pub fn print_window_flags() -> eyre::Result<()> {
     get_foreground_window()
         .and_then(|hwnd| {
             println!("Styles for '{}'", get_window_text(hwnd).unwrap_or_else(|_| "".to_owned()));
-            let styles = get_window_long_ptr(hwnd, GWL_STYLE)? as u32;
+            let styles = WINDOW_STYLE(get_window_long_ptr(hwnd, GWL_STYLE)? as u32);
             PRINT_STYLE!(styles, WS_BORDER);
             PRINT_STYLE!(styles, WS_CAPTION);
             PRINT_STYLE!(styles, WS_CHILD);
@@ -185,7 +185,7 @@ pub fn print_window_flags() -> eyre::Result<()> {
             PRINT_STYLE!(styles, WS_VISIBLE);
             PRINT_STYLE!(styles, WS_VSCROLL);
 
-            let styles = get_window_long_ptr(hwnd, GWL_EXSTYLE)? as u32;
+            let styles = WINDOW_EX_STYLE(get_window_long_ptr(hwnd, GWL_EXSTYLE)? as u32);
             PRINT_STYLE!(styles, WS_EX_ACCEPTFILES);
             PRINT_STYLE!(styles, WS_EX_APPWINDOW);
             PRINT_STYLE!(styles, WS_EX_CLIENTEDGE);
