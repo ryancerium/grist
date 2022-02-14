@@ -2,12 +2,12 @@ use std::ffi::c_void;
 
 use eyre::eyre;
 use windows::Win32::Foundation::{
-    CloseHandle, GetLastError, SetLastError, BOOL, HANDLE, HINSTANCE, HWND, LPARAM, LRESULT, MAX_PATH, NO_ERROR, PWSTR,
-    RECT, WPARAM,
+    CloseHandle, GetLastError, SetLastError, BOOL, HANDLE, HINSTANCE, HWND, LPARAM, LRESULT, MAX_PATH, NO_ERROR, POINT,
+    PWSTR, RECT, WPARAM,
 };
 use windows::Win32::Graphics::Dwm::{DwmGetWindowAttribute, DWMWA_EXTENDED_FRAME_BOUNDS};
 use windows::Win32::Graphics::Gdi::{
-    EnumDisplayMonitors, GetMonitorInfoW, MonitorFromWindow, HDC, HMONITOR, MONITORINFO, MONITOR_FROM_FLAGS,
+    EnumDisplayMonitors, GetMonitorInfoW, MonitorFromWindow, PtInRect, HDC, HMONITOR, MONITORINFO, MONITOR_FROM_FLAGS,
 };
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows::Win32::System::ProcessStatus::K32GetModuleFileNameExW;
@@ -15,12 +15,12 @@ use windows::Win32::System::RemoteDesktop::{WTSRegisterSessionNotification, WTSU
 use windows::Win32::System::Threading::{OpenProcess, PROCESS_ACCESS_RIGHTS};
 use windows::Win32::UI::Shell::{Shell_NotifyIconW, NOTIFYICONDATAW, NOTIFY_ICON_MESSAGE};
 use windows::Win32::UI::WindowsAndMessaging::{
-    CallNextHookEx, CreatePopupMenu, CreateWindowExW, DefWindowProcW, DispatchMessageW, GetForegroundWindow,
-    GetMessageW, GetWindowLongPtrW, GetWindowRect, GetWindowTextLengthW, GetWindowTextW, GetWindowThreadProcessId,
-    InsertMenuW, PostMessageW, RegisterClassW, SetCursorPos, SetForegroundWindow, SetWindowLongPtrW, SetWindowPos,
-    SetWindowsHookExW, ShowWindow, ShowWindowAsync, TrackPopupMenu, TranslateMessage, UnhookWindowsHookEx, HHOOK,
-    HMENU, HOOKPROC, MENU_ITEM_FLAGS, MSG, SET_WINDOW_POS_FLAGS, SHOW_WINDOW_CMD, TRACK_POPUP_MENU_FLAGS,
-    WINDOWS_HOOK_ID, WINDOW_EX_STYLE, WINDOW_LONG_PTR_INDEX, WINDOW_STYLE, WNDCLASSW,
+    CallNextHookEx, CreatePopupMenu, CreateWindowExW, DefWindowProcW, DispatchMessageW, GetCursorPos,
+    GetForegroundWindow, GetMessageW, GetWindowLongPtrW, GetWindowRect, GetWindowTextLengthW, GetWindowTextW,
+    GetWindowThreadProcessId, InsertMenuW, PostMessageW, RegisterClassW, SetCursorPos, SetForegroundWindow,
+    SetWindowLongPtrW, SetWindowPos, SetWindowsHookExW, ShowWindow, ShowWindowAsync, TrackPopupMenu, TranslateMessage,
+    UnhookWindowsHookEx, HHOOK, HMENU, HOOKPROC, MENU_ITEM_FLAGS, MSG, SET_WINDOW_POS_FLAGS, SHOW_WINDOW_CMD,
+    TRACK_POPUP_MENU_FLAGS, WINDOWS_HOOK_ID, WINDOW_EX_STYLE, WINDOW_LONG_PTR_INDEX, WINDOW_STYLE, WNDCLASSW,
 };
 
 pub trait Win32ReturnIntoResult
@@ -205,6 +205,11 @@ pub fn enum_display_monitors() -> eyre::Result<Vec<MONITORINFO>> {
     }
 }
 
+pub fn get_cursor_pos() -> eyre::Result<POINT> {
+    let mut point = Default::default();
+    unsafe { GetCursorPos(&mut point).into_result().map(|_| point) }
+}
+
 pub fn get_foreground_window() -> eyre::Result<HWND> {
     unsafe { GetForegroundWindow().into_result() }
 }
@@ -313,6 +318,10 @@ pub fn open_process(
         let handle = OpenProcess(dwdesiredaccess, binherithandle, dwprocessid);
         handle.into_result()
     }
+}
+
+pub fn point_in_rect(rect: &RECT, point: &POINT) -> bool {
+    unsafe { PtInRect(rect, point).as_bool() }
 }
 
 pub fn post_message(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> BOOL {

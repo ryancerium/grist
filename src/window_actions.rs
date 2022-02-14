@@ -92,10 +92,14 @@ fn calculate_margin(hwnd: HWND) -> eyre::Result<RECT> {
 fn set_window_pos_action(workarea_to_window_pos: &WorkAreaToWindowPosFn) -> eyre::Result<()> {
     let foreground_window = get_foreground_window()?;
     let monitor_info = get_monitor_info(monitor_from_window(foreground_window, MONITOR_DEFAULTTOPRIMARY)?)?;
-    let window_pos = workarea_to_window_pos(&monitor_info.rcWork);
-    let _ = set_window_rect(foreground_window, &window_pos, SWP_NOZORDER)?;
+    let new_window_pos = workarea_to_window_pos(&monitor_info.rcWork);
+    let _ = set_window_rect(foreground_window, &new_window_pos, SWP_NOZORDER)?;
 
-    set_cursor_pos(window_pos.center().x, window_pos.center().y).map(|_| ())
+    if point_in_rect(&new_window_pos, &get_cursor_pos()?) {
+        Ok(())
+    } else {
+        set_cursor_pos(new_window_pos.center().x, new_window_pos.center().y).map(|_| ())
+    }
 }
 
 fn top_left() -> eyre::Result<()> {
