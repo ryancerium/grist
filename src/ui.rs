@@ -108,9 +108,10 @@ fn on_notification_icon(hwnd: HWND, wparam: WPARAM, lparam: LPARAM) -> eyre::Res
             let x = GET_X_LPARAM(wparam.0 as u32);
             let y = GET_Y_LPARAM(wparam.0 as u32);
             let hmenu = create_popup_menu()?;
-            let _ = insert_menu(hmenu, 0, MF_BYPOSITION | MF_STRING, MENU_PRINT_KEYS as usize, "Print Keys")?;
-            let _ = insert_menu(hmenu, 1, MF_BYPOSITION | MF_STRING, MENU_RELOAD as usize, "Reload")?;
-            let _ = insert_menu(hmenu, 2, MF_BYPOSITION | MF_STRING, MENU_EXIT as usize, "Exit")?;
+            let mf_byposition_string = MF_BYPOSITION | MF_STRING;
+            let _ = insert_menu(hmenu, 0, mf_byposition_string, MENU_PRINT_KEYS as usize, "Print Pressed Keys")?;
+            let _ = insert_menu(hmenu, 1, mf_byposition_string, MENU_RELOAD as usize, "Reload")?;
+            let _ = insert_menu(hmenu, 2, mf_byposition_string, MENU_EXIT as usize, "Exit")?;
             let _ = set_foreground_window(hwnd)?;
             track_popup_menu(
                 hmenu,
