@@ -1,9 +1,10 @@
 use std::ffi::c_void;
 
 use eyre::eyre;
+use windows::core::{PCWSTR, PWSTR};
 use windows::Win32::Foundation::{
     CloseHandle, GetLastError, SetLastError, BOOL, HANDLE, HINSTANCE, HWND, LPARAM, LRESULT, MAX_PATH, NO_ERROR, POINT,
-    PWSTR, RECT, WPARAM,
+    RECT, WPARAM,
 };
 use windows::Win32::Graphics::Dwm::{DwmGetWindowAttribute, DWMWA_EXTENDED_FRAME_BOUNDS};
 use windows::Win32::Graphics::Gdi::{
@@ -15,11 +16,11 @@ use windows::Win32::System::RemoteDesktop::{WTSRegisterSessionNotification, WTSU
 use windows::Win32::System::Threading::{OpenProcess, PROCESS_ACCESS_RIGHTS};
 use windows::Win32::UI::Shell::{Shell_NotifyIconW, NOTIFYICONDATAW, NOTIFY_ICON_MESSAGE};
 use windows::Win32::UI::WindowsAndMessaging::{
-    CallNextHookEx, CreatePopupMenu, CreateWindowExW, DefWindowProcW, DispatchMessageW, GetCursorPos,
+    CallNextHookEx, CreatePopupMenu, CreateWindowExW, DefWindowProcW, DestroyIcon, DispatchMessageW, GetCursorPos,
     GetForegroundWindow, GetMessageW, GetWindowLongPtrW, GetWindowRect, GetWindowTextLengthW, GetWindowTextW,
     GetWindowThreadProcessId, InsertMenuW, PostMessageW, RegisterClassW, SetCursorPos, SetForegroundWindow,
     SetWindowLongPtrW, SetWindowPos, SetWindowsHookExW, ShowWindow, ShowWindowAsync, TrackPopupMenu, TranslateMessage,
-    UnhookWindowsHookEx, HHOOK, HMENU, HOOKPROC, MENU_ITEM_FLAGS, MSG, SET_WINDOW_POS_FLAGS, SHOW_WINDOW_CMD,
+    UnhookWindowsHookEx, HHOOK, HICON, HMENU, HOOKPROC, MENU_ITEM_FLAGS, MSG, SET_WINDOW_POS_FLAGS, SHOW_WINDOW_CMD,
     TRACK_POPUP_MENU_FLAGS, WINDOWS_HOOK_ID, WINDOW_EX_STYLE, WINDOW_LONG_PTR_INDEX, WINDOW_STYLE, WNDCLASSW,
 };
 
@@ -117,8 +118,8 @@ pub fn create_popup_menu() -> eyre::Result<HMENU> {
 #[allow(clippy::too_many_arguments)]
 pub fn create_window(
     dwexstyle: WINDOW_EX_STYLE,
-    lpclassname: PWSTR,
-    lpwindowname: PWSTR,
+    lpclassname: PCWSTR,
+    lpwindowname: PCWSTR,
     dwstyle: WINDOW_STYLE,
     x: i32,
     y: i32,
@@ -150,6 +151,10 @@ pub fn create_window(
 
 pub fn def_window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
     unsafe { DefWindowProcW(hwnd, msg, wparam, lparam) }
+}
+
+pub fn destroy_icon(hicon: HICON) -> eyre::Result<BOOL> {
+    unsafe { DestroyIcon(hicon).into_result() }
 }
 
 pub fn dispatch_message(msg: &MSG) -> LRESULT {
@@ -218,7 +223,7 @@ pub fn get_message(msg: &mut MSG, hwnd: HWND, wmsgfiltermin: u32, wmsgfiltermax:
     unsafe { GetMessageW(msg, hwnd, wmsgfiltermin, wmsgfiltermax) }
 }
 
-pub fn get_module_handle(lpmodulename: PWSTR) -> eyre::Result<HINSTANCE> {
+pub fn get_module_handle(lpmodulename: PCWSTR) -> eyre::Result<HINSTANCE> {
     unsafe { GetModuleHandleW(lpmodulename).into_result() }
 }
 

@@ -1,12 +1,13 @@
 use crate::safe_win32::{
-    call_next_hook, create_popup_menu, create_window, def_window_proc, get_module_handle, get_window_long_ptr,
-    insert_menu, post_message, register_class, set_foreground_window, set_window_long_ptr, set_windows_hook,
-    shell_notify_icon, track_popup_menu, unhook_windows_hook_ex, wts_register_session_notification,
+    call_next_hook, create_popup_menu, create_window, def_window_proc, destroy_icon, get_module_handle,
+    get_window_long_ptr, insert_menu, post_message, register_class, set_foreground_window, set_window_long_ptr,
+    set_windows_hook, shell_notify_icon, track_popup_menu, unhook_windows_hook_ex, wts_register_session_notification,
     wts_unregister_session_notification, Win32ReturnIntoResult,
 };
 use crate::{hotkey_action, msg, print_pressed_keys, ACTIONS, DEBUG, PRESSED_KEYS};
 use num::FromPrimitive;
-use windows::Win32::Foundation::{HINSTANCE, HWND, LPARAM, LRESULT, PWSTR, WPARAM};
+use windows::core::PCWSTR;
+use windows::Win32::Foundation::{HINSTANCE, HWND, LPARAM, LRESULT, WPARAM};
 use windows::Win32::Graphics::Gdi::HBRUSH;
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows::Win32::UI::Shell::{
@@ -198,7 +199,7 @@ extern "system" fn wndproc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM)
         WM_DESTROY => {
             let _ = wts_unregister_session_notification(hwnd);
             if let Ok(ptr) = get_window_long_ptr(hwnd, GRIST_INDEX) {
-                let _grist_app = unsafe { Box::from_raw(ptr as *mut GristApp) };
+                drop(unsafe { Box::from_raw(ptr as *mut GristApp) });
             }
         }
         WM_CLICK_NOTIFY_ICON => on_notification_icon(hwnd, wparam, lparam).unwrap_or(()),
@@ -258,26 +259,26 @@ unsafe extern "system" fn low_level_keyboard_proc(n_code: i32, wparam: WPARAM, l
 pub fn create() -> eyre::Result<HWND> {
     let mut name: Vec<u16> = "Grist".encode_utf16().collect();
 
-    let hinstance = get_module_handle(PWSTR(std::ptr::null_mut()))?;
+    let hinstance = get_module_handle(PCWSTR(std::ptr::null_mut()))?;
     let wnd_class = WNDCLASSW {
         style: CS_OWNDC | CS_HREDRAW | CS_VREDRAW,
         lpfnWndProc: Some(wndproc),
         hInstance: hinstance,
-        lpszClassName: PWSTR(name.as_mut_ptr()),
+        lpszClassName: PCWSTR(name.as_mut_ptr()),
         cbClsExtra: 0,
         cbWndExtra: std::mem::size_of::<*mut GristApp>() as i32,
         hIcon: HICON::default(),
         hCursor: HCURSOR::default(),
         hbrBackground: HBRUSH::default(),
-        lpszMenuName: PWSTR(std::ptr::null_mut()),
+        lpszMenuName: PCWSTR(std::ptr::null_mut()),
     };
 
     register_class(&wnd_class)?;
 
     create_window(
         WINDOW_EX_STYLE::default(),
-        PWSTR(name.as_mut_ptr()),
-        PWSTR(name.as_mut_ptr()),
+        PCWSTR(name.as_mut_ptr()),
+        PCWSTR(name.as_mut_ptr()),
         WS_OVERLAPPEDWINDOW,
         CW_USEDEFAULT,
         CW_USEDEFAULT,
@@ -316,7 +317,7 @@ impl GristApp {
         if let Ok(hook) = set_windows_hook(
             WH_KEYBOARD_LL,
             Some(low_level_keyboard_proc),
-            unsafe { GetModuleHandleW(PWSTR(std::ptr::null_mut())) },
+            unsafe { GetModuleHandleW(PCWSTR(std::ptr::null_mut())) },
             0,
         ) {
             self.hook = hook;
@@ -338,6 +339,10 @@ impl GristApp {
 impl Drop for GristApp {
     fn drop(&mut self) {
         let _ = shell_notify_icon(NIM_DELETE, &mut self.nid);
+        if !self.nid.hIcon.is_invalid() {
+            let _ = destroy_icon(self.nid.hIcon);
+            self.nid.hIcon = HICON::default();
+        }
         self.unhook_keyboard();
     }
 }
