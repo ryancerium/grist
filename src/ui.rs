@@ -2,7 +2,7 @@ use crate::safe_win32::{
     call_next_hook, create_popup_menu, create_window, def_window_proc, destroy_icon, get_module_handle,
     get_window_long_ptr, insert_menu, post_message, register_class, set_foreground_window, set_window_long_ptr,
     set_windows_hook, shell_notify_icon, track_popup_menu, unhook_windows_hook_ex, wts_register_session_notification,
-    wts_unregister_session_notification, Win32ReturnIntoResult,
+    wts_unregister_session_notification,
 };
 use crate::{hotkey_action, msg, print_pressed_keys, ACTIONS, DEBUG, PRESSED_KEYS};
 use num::FromPrimitive;
@@ -42,8 +42,9 @@ fn grist_app_from_hwnd(hwnd: &mut HWND) -> &mut GristApp {
 fn load_icon(name: &str) -> eyre::Result<HICON> {
     unsafe {
         LoadImageW(HINSTANCE::default(), name, IMAGE_ICON, 0, 0, LR_LOADFROMFILE | LR_DEFAULTSIZE)
-            .into_result()
+            .ok()
             .map(|handle| HICON(handle.0))
+            .map_err(eyre::Report::from)
     }
 }
 

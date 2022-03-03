@@ -3,7 +3,7 @@ use crate::hotkey_action::{HotkeyAction, VK};
 use crate::safe_win32::*;
 use crate::PRINT_STYLE;
 use eyre::eyre;
-use windows::Win32::Foundation::{BOOL, HWND, RECT};
+use windows::Win32::Foundation::{HWND, RECT};
 use windows::Win32::Graphics::Gdi::MONITOR_DEFAULTTOPRIMARY;
 use windows::Win32::System::Threading::{PROCESS_QUERY_INFORMATION, PROCESS_VM_READ};
 use windows::Win32::UI::WindowsAndMessaging::{
@@ -62,7 +62,7 @@ pub fn add_actions(actions: &mut Vec<HotkeyAction>) {
     ]);
 }
 
-pub fn set_window_rect(hwnd: HWND, position: &RECT, flags: SET_WINDOW_POS_FLAGS) -> eyre::Result<BOOL> {
+pub fn set_window_rect(hwnd: HWND, position: &RECT, flags: SET_WINDOW_POS_FLAGS) -> eyre::Result<()> {
     let _ = show_window(hwnd, SW_RESTORE)?;
 
     let margin = calculate_margin(hwnd)?;
