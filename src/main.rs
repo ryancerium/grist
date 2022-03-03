@@ -31,7 +31,7 @@ use std::{
         RwLock,
     },
 };
-use windows::Win32::{UI::WindowsAndMessaging::MSG, Foundation::BOOL};
+use windows::Win32::{Foundation::BOOL, UI::WindowsAndMessaging::MSG};
 
 static ACTIONS: Lazy<RwLock<Vec<HotkeyAction>>> = Lazy::new(RwLock::default);
 static DEBUG: Lazy<AtomicBool> = Lazy::new(AtomicBool::default);
@@ -78,18 +78,14 @@ fn create_actions() -> Vec<HotkeyAction> {
 }
 
 fn main() -> eyre::Result<()> {
+    println!("Win + LeftShift + D to toggle debug");
+    println!("Win + LeftShift + ? to view actions");
+
     {
         *ACTIONS.write().unwrap() = create_actions();
     }
 
-    let hwnd = match ui::create() {
-        Ok(hwnd) => hwnd,
-        Err(e) => return Err(e),
-    };
-
-    println!("Win + LeftShift + D to toggle debug");
-    println!("Win + LeftShift + ? to view actions");
-
+    let hwnd = ui::create()?;
     let mut msg = MSG::default();
     loop {
         match get_message(&mut msg, hwnd, 0, 0) {
