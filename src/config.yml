@@ -1,0 +1,45 @@
+actions:
+  - name: Top Left
+    action: Northwest
+    keys:
+      - LeftWindows
+      - Numpad7
+  - name: Maximize
+    action: Maximize
+    keys:
+      - LeftWindows
+      - Up
+  - name: Move Next
+    action: NextMonitor
+    keys:
+      - LeftWindows
+      - Right
+      - Up
+  - name: Move Prev
+    action: PrevMonitor
+    keys:
+      - LeftWindows
+      - Left
+  - name: IM Window
+    action: Position
+    keys:
+      - LeftWindows
+      - One
+rust_struct: |
+  pub enum Action {
+    LocationDesktop(x: int, y: int, w: int, h: int)
+    LocationMonitor(x: int, y: int, w: int, h: int),
+    MonitorBottom,
+    MonitorLeft,
+    MonitorNE,
+    MonitorNW,
+    MonitorRight,
+    MonitorSE,
+    MonitorSW,
+    MonitorTop,
+    MoveNextMonitor,
+    MovePrevMonitor,
+  }
+
+#
+#

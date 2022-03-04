@@ -107,10 +107,10 @@ pub fn enum_display_monitors() -> eyre::Result<Vec<MONITORINFO>> {
         if let Ok(monitor_info) = get_monitor_info(hmonitor) {
             let monitors = &mut *(monitors.0 as *mut Vec<MONITORINFO>);
             monitors.push(monitor_info);
-            return true.into();
+            BOOL::from(true)
+        } else {
+            BOOL::from(false)
         }
-
-        false.into()
     }
 
     let mut monitors = Vec::new();

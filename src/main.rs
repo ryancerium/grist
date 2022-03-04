@@ -24,13 +24,9 @@ use once_cell::sync::Lazy;
 // Import crate members
 use crate::safe_win32::{dispatch_message, get_message, translate_message};
 use hotkey_action::{HotkeyAction, VK};
-use std::{
-    collections::BTreeSet,
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        RwLock,
-    },
-};
+use std::collections::BTreeSet;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::RwLock;
 use windows::Win32::{Foundation::BOOL, UI::WindowsAndMessaging::MSG};
 
 static ACTIONS: Lazy<RwLock<Vec<HotkeyAction>>> = Lazy::new(RwLock::default);
