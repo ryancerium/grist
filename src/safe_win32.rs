@@ -92,10 +92,7 @@ pub fn dwm_get_window_attribute_extended_frame_bounds(hwnd: HWND) -> eyre::Resul
             &mut extended_frame_bounds as *mut RECT as *mut core::ffi::c_void,
             std::mem::size_of_val(&extended_frame_bounds) as u32,
         );
-        match success {
-            Ok(_) => Ok(extended_frame_bounds),
-            Err(e) => Err(eyre!(e.message())),
-        }
+        success.map(|_| extended_frame_bounds).map_err(|e| eyre!(e.message()))
     }
 }
 
@@ -107,29 +104,27 @@ pub fn enum_display_monitors() -> eyre::Result<Vec<MONITORINFO>> {
         _rect: *mut RECT,
         monitors: LPARAM,
     ) -> BOOL {
-        let monitor_info = match get_monitor_info(hmonitor) {
-            Ok(monitor_info) => monitor_info,
-            Err(_) => return false.into(),
-        };
-        let monitors = &mut *(monitors.0 as *mut Vec<MONITORINFO>);
-        monitors.push(monitor_info);
-        true.into()
+        if let Ok(monitor_info) = get_monitor_info(hmonitor) {
+            let monitors = &mut *(monitors.0 as *mut Vec<MONITORINFO>);
+            monitors.push(monitor_info);
+            return true.into();
+        }
+
+        false.into()
     }
 
     let mut monitors = Vec::new();
-    let success = unsafe {
+    unsafe {
         EnumDisplayMonitors(
             HDC::default(),
             std::ptr::null_mut(),
             Some(enum_display_monitors_callback),
             LPARAM(&mut monitors as *mut Vec<MONITORINFO> as isize),
         )
-    };
-
-    match success.as_bool() {
-        true => Ok(monitors),
-        false => Err(eyre!("EnumDisplayMonitors() failed")),
     }
+    .ok()
+    .map(|_| monitors)
+    .map_err(|_| eyre!("EnumDisplayMonitors() failed"))
 }
 
 pub fn get_cursor_pos() -> eyre::Result<POINT> {
@@ -153,10 +148,7 @@ pub fn get_module_file_name(hprocess: HANDLE) -> eyre::Result<String> {
     let mut filename: [u16; MAX_PATH as usize] = [0; MAX_PATH as usize];
     match unsafe { K32GetModuleFileNameExW(hprocess, HINSTANCE::default(), PWSTR(filename.as_mut_ptr()), MAX_PATH) } {
         0 => Err(std::io::Error::last_os_error().into()),
-        _ => match String::from_utf16(&filename) {
-            Ok(s) => Ok(s),
-            Err(e) => Err(e.into()),
-        },
+        _ => String::from_utf16(&filename).map_err(eyre::Report::from),
     }
 }
 
@@ -211,10 +203,7 @@ pub fn get_window_text(hwnd: HWND) -> eyre::Result<String> {
     let text_length = get_window_text_length(hwnd)? + 1;
     let mut chars = vec![0; text_length as usize];
     unsafe { GetWindowTextW(hwnd, PWSTR(chars.as_mut_ptr()), chars.len() as i32) };
-    match String::from_utf16(chars.as_slice()) {
-        Ok(t) => Ok(t),
-        Err(e) => Err(e.into()),
-    }
+    String::from_utf16(chars.as_slice()).map_err(eyre::Report::from)
 }
 
 pub struct ThreadProcessId {
@@ -287,12 +276,8 @@ pub fn set_window_long_ptr(hwnd: HWND, nindex: WINDOW_LONG_PTR_INDEX, dwnewlong:
         SetLastError(NO_ERROR);
 
         let previous = SetWindowLongPtrW(hwnd, nindex, dwnewlong);
-        if previous != 0 {
+        if previous != 0 || GetLastError() == NO_ERROR {
             return Ok(previous);
-        }
-
-        if GetLastError() == NO_ERROR {
-            return Ok(0);
         }
 
         Err(std::io::Error::last_os_error().into())
