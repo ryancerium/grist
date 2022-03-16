@@ -56,15 +56,7 @@ fn move_to_adjacent_monitor(direction: Direction) -> eyre::Result<()> {
     let monitor_info = get_monitor_info(monitor_from_window(foreground_window, MONITOR_DEFAULTTOPRIMARY)?)?;
 
     let i = direction.apply(
-        monitors
-            .iter()
-            .position(|&m| {
-                m.rcWork.left == monitor_info.rcWork.left
-                    && m.rcWork.right == monitor_info.rcWork.right
-                    && m.rcWork.top == monitor_info.rcWork.top
-                    && m.rcWork.bottom == monitor_info.rcWork.bottom
-            })
-            .unwrap(),
+        monitors.iter().position(|&m| m.rcWork == monitor_info.rcWork).unwrap(),
         monitors.len(),
     );
 
