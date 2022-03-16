@@ -1,7 +1,7 @@
 use std::ffi::c_void;
 
 use eyre::eyre;
-use windows::core::{PCWSTR, PWSTR};
+use windows::core::PCWSTR;
 use windows::Win32::Foundation::{
     CloseHandle, GetLastError, SetLastError, BOOL, HANDLE, HINSTANCE, HWND, LPARAM, LRESULT, MAX_PATH, NO_ERROR, POINT,
     RECT, WPARAM,
@@ -146,7 +146,7 @@ pub fn get_module_handle(lpmodulename: PCWSTR) -> eyre::Result<HINSTANCE> {
 
 pub fn get_module_file_name(hprocess: HANDLE) -> eyre::Result<String> {
     let mut filename: [u16; MAX_PATH as usize] = [0; MAX_PATH as usize];
-    match unsafe { K32GetModuleFileNameExW(hprocess, HINSTANCE::default(), PWSTR(filename.as_mut_ptr()), MAX_PATH) } {
+    match unsafe { K32GetModuleFileNameExW(hprocess, HINSTANCE::default(), &mut filename) } {
         0 => Err(std::io::Error::last_os_error().into()),
         _ => String::from_utf16(&filename).map_err(eyre::Report::from),
     }
@@ -202,7 +202,7 @@ pub fn get_window_text_length(hwnd: HWND) -> eyre::Result<i32> {
 pub fn get_window_text(hwnd: HWND) -> eyre::Result<String> {
     let text_length = get_window_text_length(hwnd)? + 1;
     let mut chars = vec![0; text_length as usize];
-    unsafe { GetWindowTextW(hwnd, PWSTR(chars.as_mut_ptr()), chars.len() as i32) };
+    unsafe { GetWindowTextW(hwnd, &mut chars) };
     String::from_utf16(chars.as_slice()).map_err(eyre::Report::from)
 }
 
