@@ -42,7 +42,6 @@ fn grist_app_from_hwnd(hwnd: &mut HWND) -> &mut GristApp {
 fn load_icon(name: &str) -> eyre::Result<HICON> {
     unsafe {
         LoadImageW(HINSTANCE::default(), name, IMAGE_ICON, 0, 0, LR_LOADFROMFILE | LR_DEFAULTSIZE)
-            .ok()
             .map(|handle| HICON(handle.0))
             .map_err(eyre::Report::from)
     }

@@ -24,6 +24,41 @@ use windows::Win32::UI::WindowsAndMessaging::{
     TRACK_POPUP_MENU_FLAGS, WINDOWS_HOOK_ID, WINDOW_EX_STYLE, WINDOW_LONG_PTR_INDEX, WINDOW_STYLE, WNDCLASSW,
 };
 
+pub trait Win32Handle
+where
+    Self: std::marker::Sized,
+{
+    fn ok(self) -> eyre::Result<Self>;
+}
+
+impl Win32Handle for HWND {
+    fn ok(self) -> eyre::Result<HWND> {
+        match self {
+            HWND(0) => Err(eyre::Report::from(windows::core::Error::from_win32())),
+            HWND(h) => Ok(HWND(h)),
+        }
+    }
+}
+
+impl Win32Handle for HINSTANCE {
+    fn ok(self) -> eyre::Result<HINSTANCE> {
+        match self {
+            HINSTANCE(0) => Err(eyre::Report::from(windows::core::Error::from_win32())),
+            HINSTANCE(h) => Ok(HINSTANCE(h)),
+        }
+    }
+}
+
+impl Win32Handle for HMONITOR {
+    fn ok(self) -> eyre::Result<HMONITOR> {
+        if self.is_invalid() {
+            Err(eyre::Report::from(windows::core::Error::from_win32()))
+        } else {
+            Ok(self)
+        }
+    }
+}
+
 pub fn call_next_hook(hhk: HHOOK, ncode: i32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
     unsafe { CallNextHookEx(hhk, ncode, wparam, lparam) }
 }
@@ -33,7 +68,7 @@ pub fn close_handle(handle: HANDLE) -> eyre::Result<()> {
 }
 
 pub fn create_popup_menu() -> eyre::Result<HMENU> {
-    unsafe { CreatePopupMenu().ok().map_err(eyre::Report::from) }
+    unsafe { CreatePopupMenu().map_err(eyre::Report::from) }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -67,7 +102,6 @@ pub fn create_window(
             lpparam,
         )
         .ok()
-        .map_err(eyre::Report::from)
     }
 }
 
@@ -133,7 +167,7 @@ pub fn get_cursor_pos() -> eyre::Result<POINT> {
 }
 
 pub fn get_foreground_window() -> eyre::Result<HWND> {
-    unsafe { GetForegroundWindow().ok().map_err(eyre::Report::from) }
+    unsafe { GetForegroundWindow().ok() }
 }
 
 pub fn get_message(msg: &mut MSG, hwnd: HWND, wmsgfiltermin: u32, wmsgfiltermax: u32) -> BOOL {
@@ -141,7 +175,7 @@ pub fn get_message(msg: &mut MSG, hwnd: HWND, wmsgfiltermin: u32, wmsgfiltermax:
 }
 
 pub fn get_module_handle(lpmodulename: PCWSTR) -> eyre::Result<HINSTANCE> {
-    unsafe { GetModuleHandleW(lpmodulename).ok().map_err(eyre::Report::from) }
+    unsafe { GetModuleHandleW(lpmodulename).ok() }
 }
 
 pub fn get_module_file_name(hprocess: HANDLE) -> eyre::Result<String> {
@@ -232,7 +266,7 @@ pub fn insert_menu(
 }
 
 pub fn monitor_from_window(hwnd: HWND, dwflags: MONITOR_FROM_FLAGS) -> eyre::Result<HMONITOR> {
-    unsafe { MonitorFromWindow(hwnd, dwflags).ok().map_err(eyre::Report::from) }
+    unsafe { MonitorFromWindow(hwnd, dwflags).ok() }
 }
 
 pub fn open_process(
@@ -240,10 +274,7 @@ pub fn open_process(
     binherithandle: bool,
     dwprocessid: u32,
 ) -> eyre::Result<HANDLE> {
-    unsafe {
-        let handle = OpenProcess(dwdesiredaccess, binherithandle, dwprocessid);
-        handle.ok().map_err(eyre::Report::from)
-    }
+    unsafe { OpenProcess(dwdesiredaccess, binherithandle, dwprocessid).map_err(eyre::Report::from) }
 }
 
 pub fn point_in_rect(rect: &RECT, point: &POINT) -> bool {
@@ -306,11 +337,7 @@ pub fn set_windows_hook(
     hmod: HINSTANCE,
     dwthreadid: u32,
 ) -> eyre::Result<HHOOK> {
-    unsafe {
-        SetWindowsHookExW(idhook, lpfn, hmod, dwthreadid)
-            .ok()
-            .map_err(eyre::Report::from)
-    }
+    unsafe { SetWindowsHookExW(idhook, lpfn, hmod, dwthreadid).map_err(eyre::Report::from) }
 }
 
 pub fn shell_notify_icon(dwmessage: NOTIFY_ICON_MESSAGE, lpdata: &mut NOTIFYICONDATAW) -> eyre::Result<()> {
