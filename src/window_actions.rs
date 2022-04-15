@@ -1,5 +1,5 @@
 use crate::cardinal::Cardinal;
-use crate::hotkey_action::{HotkeyAction, VK};
+use crate::hotkey_action::{Action, HotkeyAction, VK};
 use crate::safe_win32::*;
 use crate::PRINT_STYLE;
 use eyre::eyre;
@@ -39,26 +39,26 @@ pub fn get_foreground_window_not_zoom() -> eyre::Result<HWND> {
 
 pub fn add_actions(actions: &mut Vec<HotkeyAction>) {
     actions.extend_from_slice(&[
-        HotkeyAction::new("Top Left", top_left, &[VK::LeftWindows, VK::Numpad7]),
-        HotkeyAction::new("Top Left", top_left, &[VK::LeftWindows, VK::N1]),
-        HotkeyAction::new("Top Right", top_right, &[VK::LeftWindows, VK::Numpad9]),
-        HotkeyAction::new("Top Right", top_right, &[VK::LeftWindows, VK::N2]),
-        HotkeyAction::new("Bottom Left", bottom_left, &[VK::LeftWindows, VK::Numpad1]),
-        HotkeyAction::new("Bottom Left", bottom_left, &[VK::LeftWindows, VK::N3]),
-        HotkeyAction::new("Bottom Right", bottom_right, &[VK::LeftWindows, VK::Numpad3]),
-        HotkeyAction::new("Bottom Right", bottom_right, &[VK::LeftWindows, VK::N4]),
-        HotkeyAction::new("West", west, &[VK::LeftWindows, VK::Numpad4]),
-        HotkeyAction::new("West", west, &[VK::LeftWindows, VK::N7]),
-        HotkeyAction::new("East", east, &[VK::LeftWindows, VK::Numpad6]),
-        HotkeyAction::new("East", east, &[VK::LeftWindows, VK::N8]),
-        HotkeyAction::new("North", north, &[VK::LeftWindows, VK::Numpad8]),
-        HotkeyAction::new("North", north, &[VK::LeftWindows, VK::N5]),
-        HotkeyAction::new("South", south, &[VK::LeftWindows, VK::Numpad2]),
-        HotkeyAction::new("South", south, &[VK::LeftWindows, VK::N6]),
-        HotkeyAction::new("Maximize", maximize, &[VK::LeftWindows, VK::Up]),
-        HotkeyAction::new("Minimize", minimize, &[VK::LeftWindows, VK::Down]),
-        HotkeyAction::new("Clear Topmost Flag", clear_topmost, &[VK::LeftWindows, VK::LeftShift, VK::Z]),
-        HotkeyAction::new("Print Flags", print_window_flags, &[VK::LeftWindows, VK::LeftShift, VK::F]),
+        HotkeyAction::new("Top Left", Action::MonitorTopLeft, &[VK::LeftWindows, VK::Numpad7]),
+        HotkeyAction::new("Top Left", Action::MonitorTopLeft, &[VK::LeftWindows, VK::N1]),
+        HotkeyAction::new("Top Right", Action::MonitorTopRight, &[VK::LeftWindows, VK::Numpad9]),
+        HotkeyAction::new("Top Right", Action::MonitorTopRight, &[VK::LeftWindows, VK::N2]),
+        HotkeyAction::new("Bottom Left", Action::MonitorBottomLeft, &[VK::LeftWindows, VK::Numpad1]),
+        HotkeyAction::new("Bottom Left", Action::MonitorBottomLeft, &[VK::LeftWindows, VK::N3]),
+        HotkeyAction::new("Bottom Right", Action::MonitorBottomRight, &[VK::LeftWindows, VK::Numpad3]),
+        HotkeyAction::new("Bottom Right", Action::MonitorBottomRight, &[VK::LeftWindows, VK::N4]),
+        HotkeyAction::new("Left", Action::MonitorLeft, &[VK::LeftWindows, VK::Numpad4]),
+        HotkeyAction::new("Left", Action::MonitorLeft, &[VK::LeftWindows, VK::N7]),
+        HotkeyAction::new("Right", Action::MonitorRight, &[VK::LeftWindows, VK::Numpad6]),
+        HotkeyAction::new("Right", Action::MonitorRight, &[VK::LeftWindows, VK::N8]),
+        HotkeyAction::new("Top", Action::MonitorTop, &[VK::LeftWindows, VK::Numpad8]),
+        HotkeyAction::new("Top", Action::MonitorTop, &[VK::LeftWindows, VK::N5]),
+        HotkeyAction::new("Bottom", Action::MonitorBottom, &[VK::LeftWindows, VK::Numpad2]),
+        HotkeyAction::new("Bottom", Action::MonitorBottom, &[VK::LeftWindows, VK::N6]),
+        HotkeyAction::new("Maximize", Action::Maximize, &[VK::LeftWindows, VK::Up]),
+        HotkeyAction::new("Minimize", Action::Minimize, &[VK::LeftWindows, VK::Down]),
+        HotkeyAction::new("Clear Top", Action::ClearTop, &[VK::LeftWindows, VK::LeftShift, VK::Z]),
+        //HotkeyAction::new("Print Flags", print_window_flags, &[VK::LeftWindows, VK::LeftShift, VK::F]),
     ]);
 }
 
@@ -89,7 +89,7 @@ fn calculate_margin(hwnd: HWND) -> eyre::Result<RECT> {
     })
 }
 
-fn set_window_pos_action(workarea_to_window_pos: &WorkAreaToWindowPosFn) -> eyre::Result<()> {
+pub fn set_window_pos_action(workarea_to_window_pos: &WorkAreaToWindowPosFn) -> eyre::Result<()> {
     let foreground_window = get_foreground_window()?;
     let monitor_info = get_monitor_info(monitor_from_window(foreground_window, MONITOR_DEFAULTTOPRIMARY)?)?;
     let new_window_pos = workarea_to_window_pos(&monitor_info.rcWork);
@@ -102,45 +102,45 @@ fn set_window_pos_action(workarea_to_window_pos: &WorkAreaToWindowPosFn) -> eyre
     }
 }
 
-fn top_left() -> eyre::Result<()> {
+pub fn top_left() -> eyre::Result<()> {
     set_window_pos_action(&|r| RECT::from_points(r.top_left(), r.center()))
 }
 
-fn top_right() -> eyre::Result<()> {
+pub fn top_right() -> eyre::Result<()> {
     set_window_pos_action(&|r| RECT::from_points(r.top_right(), r.center()))
 }
 
-fn bottom_left() -> eyre::Result<()> {
+pub fn bottom_left() -> eyre::Result<()> {
     set_window_pos_action(&|r| RECT::from_points(r.bottom_left(), r.center()))
 }
 
-fn bottom_right() -> eyre::Result<()> {
+pub fn bottom_right() -> eyre::Result<()> {
     set_window_pos_action(&|r| RECT::from_points(r.bottom_right(), r.center()))
 }
 
-fn west() -> eyre::Result<()> {
+pub fn left() -> eyre::Result<()> {
     set_window_pos_action(&|r| RECT::from_points(r.top_left(), r.south()))
 }
 
-fn east() -> eyre::Result<()> {
+pub fn right() -> eyre::Result<()> {
     set_window_pos_action(&|r| RECT::from_points(r.top_right(), r.south()))
 }
 
-fn north() -> eyre::Result<()> {
+pub fn top() -> eyre::Result<()> {
     set_window_pos_action(&|r| RECT::from_points(r.top_left(), r.east()))
 }
 
-fn south() -> eyre::Result<()> {
+pub fn bottom() -> eyre::Result<()> {
     set_window_pos_action(&|r| RECT::from_points(r.bottom_left(), r.east()))
 }
 
-fn maximize() -> eyre::Result<()> {
+pub fn maximize() -> eyre::Result<()> {
     get_foreground_window()
         .and_then(|hwnd| show_window(hwnd, SW_MAXIMIZE))
         .map(|_| ())
 }
 
-fn minimize() -> eyre::Result<()> {
+pub fn minimize() -> eyre::Result<()> {
     get_foreground_window_not_zoom()
         .and_then(|hwnd| show_window(hwnd, SW_MINIMIZE))
         .map(|_| ())

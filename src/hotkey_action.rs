@@ -2,9 +2,12 @@ use std::cmp::Ordering;
 use std::collections::BTreeSet;
 use std::fmt::Debug;
 
-pub type Action = fn() -> eyre::Result<()>;
+use serde::{Deserialize, Serialize};
+use windows::Win32::Foundation::RECT;
 
-#[derive(Clone)]
+use crate::{monitor, window_actions};
+
+#[derive(Clone, Deserialize, PartialEq, Serialize)]
 pub struct HotkeyAction {
     pub name: String,
     pub action: Action,
@@ -30,7 +33,7 @@ impl HotkeyAction {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, FromPrimitive, Hash, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, Eq, FromPrimitive, Hash, PartialEq)]
 #[allow(non_camel_case_types, clippy::upper_case_acronyms)]
 /// <summary>
 /// Enumeration for virtual keys.
@@ -247,5 +250,56 @@ impl Ord for VK {
         self.as_u32().cmp(&other.as_u32())
         //(*self as u32).cmp(&(*other as u32))
         //format!("{:?}", self).cmp(&format!("{:?}", other))
+    }
+}
+
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
+pub enum Action {
+    ClearTop,
+    Maximize,
+    Minimize,
+    MonitorBottom,
+    MonitorBottomLeft,
+    MonitorBottomRight,
+    MonitorLeft,
+    MonitorRight,
+    MonitorTop,
+    MonitorTopLeft,
+    MonitorTopRight,
+    MoveNextMonitor,
+    MovePrevMonitor,
+    OnDesktop { x: i32, y: i32, w: i32, h: i32 },
+    OnMonitor { x: i32, y: i32, w: i32, h: i32 },
+}
+
+impl Action {
+    pub fn apply(&self) -> eyre::Result<()> {
+        match *self {
+            Action::ClearTop => window_actions::clear_topmost(),
+            Action::Maximize => window_actions::maximize(),
+            Action::Minimize => window_actions::minimize(),
+            Action::MonitorBottom => window_actions::bottom(),
+            Action::MonitorBottomLeft => window_actions::bottom_left(),
+            Action::MonitorBottomRight => window_actions::bottom_right(),
+            Action::MonitorLeft => window_actions::left(),
+            Action::MonitorRight => window_actions::right(),
+            Action::MonitorTop => window_actions::top(),
+            Action::MonitorTopLeft => window_actions::top_left(),
+            Action::MonitorTopRight => window_actions::top_right(),
+            Action::MoveNextMonitor => monitor::move_to_next_monitor(),
+            Action::MovePrevMonitor => monitor::move_to_prev_monitor(),
+            Action::OnDesktop { x, y, w, h } => window_actions::set_window_pos_action(&move |_: &RECT| RECT {
+                left: x,
+                top: y,
+                right: x + w,
+                bottom: y + h,
+            }),
+            Action::OnMonitor { x, y, w, h } => window_actions::set_window_pos_action(&move |r: &RECT| RECT {
+                left: r.left + x,
+                top: r.top + y,
+                right: r.right + x + w,
+                bottom: r.bottom + y + h,
+            }),
+        }
     }
 }

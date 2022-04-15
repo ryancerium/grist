@@ -248,7 +248,7 @@ unsafe extern "system" fn low_level_keyboard_proc(n_code: i32, wparam: WPARAM, l
         .iter()
         .find(|hotkey_action| hotkey_action.trigger == *PRESSED_KEYS.read().unwrap())
     {
-        if let Err(error) = (action.action)() {
+        if let Err(error) = action.action.apply() {
             println!("{:?}", error);
         }
         LRESULT(1)

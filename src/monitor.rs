@@ -1,5 +1,5 @@
 use crate::cardinal::Cardinal;
-use crate::hotkey_action::{HotkeyAction, VK};
+use crate::hotkey_action::{Action, HotkeyAction, VK};
 use crate::safe_win32::{
     enum_display_monitors, get_foreground_window, get_monitor_info, monitor_from_window, set_cursor_pos,
 };
@@ -29,18 +29,18 @@ impl Direction {
 
 pub fn add_actions(actions: &mut Vec<HotkeyAction>) {
     actions.extend_from_slice(&[
-        HotkeyAction::new("Move Next", move_to_next_monitor, &[VK::LeftWindows, VK::Numpad5]),
-        HotkeyAction::new("Move Next", move_to_next_monitor, &[VK::LeftWindows, VK::Right]),
-        HotkeyAction::new("Move Prev", move_to_prev_monitor, &[VK::LeftWindows, VK::Clear]),
-        HotkeyAction::new("Move Prev", move_to_prev_monitor, &[VK::LeftWindows, VK::Left]),
+        HotkeyAction::new("Move Next", Action::MoveNextMonitor, &[VK::LeftWindows, VK::Numpad5]),
+        HotkeyAction::new("Move Next", Action::MoveNextMonitor, &[VK::LeftWindows, VK::Right]),
+        HotkeyAction::new("Move Prev", Action::MovePrevMonitor, &[VK::LeftWindows, VK::Clear]),
+        HotkeyAction::new("Move Prev", Action::MovePrevMonitor, &[VK::LeftWindows, VK::Left]),
     ]);
 }
 
-fn move_to_next_monitor() -> eyre::Result<()> {
+pub fn move_to_next_monitor() -> eyre::Result<()> {
     move_to_adjacent_monitor(Direction::Right)
 }
 
-fn move_to_prev_monitor() -> eyre::Result<()> {
+pub fn move_to_prev_monitor() -> eyre::Result<()> {
     move_to_adjacent_monitor(Direction::Left)
 }
 

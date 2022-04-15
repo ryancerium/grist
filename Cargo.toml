@@ -14,6 +14,13 @@ num = "0.4.0"
 num-derive = "0.3.3"
 num-traits = "0.2.14"
 once_cell = "1.10.0"
+serde_yaml = "0.8.23"
+
+[dependencies.serde]
+version = "1.0.136"
+features = [
+    "derive",
+]
 
 [dependencies.windows]
 version = "0.35.0"
