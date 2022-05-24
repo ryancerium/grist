@@ -22,24 +22,29 @@ use eyre::eyre;
 use once_cell::sync::Lazy;
 
 // Import crate members
-use crate::safe_win32::{dispatch_message, get_message, translate_message};
+use crate::safe_win32::{dispatch_message, get_message, message_box, translate_message};
 use hotkey_action::HotkeyAction;
 use std::collections::BTreeSet;
 use std::sync::atomic::AtomicBool;
 use std::sync::RwLock;
-use windows::Win32::{Foundation::BOOL, UI::WindowsAndMessaging::MSG};
+use windows::Win32::{
+    Foundation::{BOOL, HWND},
+    UI::WindowsAndMessaging::{MB_OK, MSG},
+};
 
 static ACTIONS: Lazy<RwLock<Vec<HotkeyAction>>> = Lazy::new(RwLock::default);
 static DEBUG: Lazy<AtomicBool> = Lazy::new(AtomicBool::default);
 static PRESSED_KEYS: Lazy<RwLock<BTreeSet<hotkey_action::VK>>> = Lazy::new(RwLock::default);
 
 fn print_pressed_keys() {
-    let pressed_keys = PRESSED_KEYS.read().unwrap();
-    let s = pressed_keys.iter().fold(String::new(), |mut s, i| {
+    let mut s = PRESSED_KEYS.read().unwrap().iter().fold(String::new(), |mut s, i| {
         let _ = std::fmt::write(&mut s, format_args!("{:?} ", *i));
         s
     });
-    println!("Pressed keys: [{}]", s);
+    if s.is_empty() {
+        s = String::from("No keys currently pressed");
+    }
+    message_box(HWND::default(), s.as_str(), "Pressed Keys", MB_OK);
 }
 
 fn create_actions() -> Vec<HotkeyAction> {

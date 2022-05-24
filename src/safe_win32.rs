@@ -18,10 +18,11 @@ use windows::Win32::UI::Shell::{Shell_NotifyIconW, NOTIFYICONDATAW, NOTIFY_ICON_
 use windows::Win32::UI::WindowsAndMessaging::{
     CallNextHookEx, CreatePopupMenu, CreateWindowExW, DefWindowProcW, DestroyIcon, DispatchMessageW, GetCursorPos,
     GetForegroundWindow, GetMessageW, GetWindowLongPtrW, GetWindowRect, GetWindowTextLengthW, GetWindowTextW,
-    GetWindowThreadProcessId, InsertMenuW, PostMessageW, RegisterClassW, SetCursorPos, SetForegroundWindow,
-    SetWindowLongPtrW, SetWindowPos, SetWindowsHookExW, ShowWindow, ShowWindowAsync, TrackPopupMenu, TranslateMessage,
-    UnhookWindowsHookEx, HHOOK, HICON, HMENU, HOOKPROC, MENU_ITEM_FLAGS, MSG, SET_WINDOW_POS_FLAGS, SHOW_WINDOW_CMD,
-    TRACK_POPUP_MENU_FLAGS, WINDOWS_HOOK_ID, WINDOW_EX_STYLE, WINDOW_LONG_PTR_INDEX, WINDOW_STYLE, WNDCLASSW,
+    GetWindowThreadProcessId, InsertMenuW, MessageBoxW, PostMessageW, RegisterClassW, SetCursorPos,
+    SetForegroundWindow, SetWindowLongPtrW, SetWindowPos, SetWindowsHookExW, ShowWindow, ShowWindowAsync,
+    TrackPopupMenu, TranslateMessage, UnhookWindowsHookEx, HHOOK, HICON, HMENU, HOOKPROC, MENU_ITEM_FLAGS,
+    MESSAGEBOX_RESULT, MESSAGEBOX_STYLE, MSG, SET_WINDOW_POS_FLAGS, SHOW_WINDOW_CMD, TRACK_POPUP_MENU_FLAGS,
+    WINDOWS_HOOK_ID, WINDOW_EX_STYLE, WINDOW_LONG_PTR_INDEX, WINDOW_STYLE, WNDCLASSW,
 };
 
 pub trait Win32Handle
@@ -175,7 +176,7 @@ pub fn get_message(msg: &mut MSG, hwnd: HWND, wmsgfiltermin: u32, wmsgfiltermax:
 }
 
 pub fn get_module_handle(lpmodulename: PCWSTR) -> eyre::Result<HINSTANCE> {
-    unsafe { GetModuleHandleW(lpmodulename).ok() }
+    unsafe { GetModuleHandleW(lpmodulename).map_err(|e| eyre!(e.message())) }
 }
 
 pub fn get_module_file_name(hprocess: HANDLE) -> eyre::Result<String> {
@@ -263,6 +264,10 @@ pub fn insert_menu(
             .ok()
             .map_err(eyre::Report::from)
     }
+}
+
+pub fn message_box(hwnd: HWND, text: &str, caption: &str, utype: MESSAGEBOX_STYLE) -> MESSAGEBOX_RESULT {
+    unsafe { MessageBoxW(hwnd, text, caption, utype) }
 }
 
 pub fn monitor_from_window(hwnd: HWND, dwflags: MONITOR_FROM_FLAGS) -> eyre::Result<HMONITOR> {

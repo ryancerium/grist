@@ -1,22 +1,21 @@
 use crate::safe_win32::{
     call_next_hook, create_popup_menu, create_window, def_window_proc, destroy_icon, get_module_handle,
-    get_window_long_ptr, insert_menu, post_message, register_class, set_foreground_window, set_window_long_ptr,
-    set_windows_hook, shell_notify_icon, track_popup_menu, unhook_windows_hook_ex, wts_register_session_notification,
-    wts_unregister_session_notification,
+    get_window_long_ptr, insert_menu, message_box, post_message, register_class, set_foreground_window,
+    set_window_long_ptr, set_windows_hook, shell_notify_icon, track_popup_menu, unhook_windows_hook_ex,
+    wts_register_session_notification, wts_unregister_session_notification,
 };
 use crate::{hotkey_action, msg, print_pressed_keys, ACTIONS, DEBUG, PRESSED_KEYS};
 use num::FromPrimitive;
 use windows::core::PCWSTR;
 use windows::Win32::Foundation::{HINSTANCE, HWND, LPARAM, LRESULT, WPARAM};
 use windows::Win32::Graphics::Gdi::HBRUSH;
-use windows::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows::Win32::UI::Shell::{
     NIF_ICON, NIF_MESSAGE, NIF_TIP, NIM_ADD, NIM_DELETE, NIM_SETVERSION, NOTIFYICONDATAW, NOTIFYICONDATAW_0,
     NOTIFYICON_VERSION_4,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
     LoadImageW, CS_HREDRAW, CS_OWNDC, CS_VREDRAW, CW_USEDEFAULT, HCURSOR, HHOOK, HICON, HMENU, IMAGE_ICON,
-    KBDLLHOOKSTRUCT, LR_DEFAULTSIZE, LR_LOADFROMFILE, MF_BYPOSITION, MF_STRING, TPM_BOTTOMALIGN, TPM_LEFTBUTTON,
+    KBDLLHOOKSTRUCT, LR_DEFAULTSIZE, LR_LOADFROMFILE, MB_OK, MF_BYPOSITION, MF_STRING, TPM_BOTTOMALIGN, TPM_LEFTBUTTON,
     TPM_RIGHTALIGN, WH_KEYBOARD_LL, WINDOW_EX_STYLE, WINDOW_LONG_PTR_INDEX, WM_APP, WM_COMMAND, WM_CREATE, WM_DESTROY,
     WM_ENTERIDLE, WM_KEYDOWN, WM_KEYUP, WM_MOUSEMOVE, WM_NULL, WM_QUIT, WM_RBUTTONUP, WM_SYSKEYDOWN, WM_SYSKEYUP,
     WM_WTSSESSION_CHANGE, WNDCLASSW, WS_OVERLAPPEDWINDOW, WTS_CONSOLE_CONNECT, WTS_CONSOLE_DISCONNECT,
@@ -31,6 +30,7 @@ const WM_CLICK_NOTIFY_ICON: u32 = WM_APP + 1;
 const MENU_EXIT: usize = 0x00;
 const MENU_RELOAD: usize = 0x01;
 const MENU_PRINT_KEYS: usize = 0x02;
+const MENU_HELP: usize = 0x03;
 const GRIST_INDEX: WINDOW_LONG_PTR_INDEX = WINDOW_LONG_PTR_INDEX(0);
 
 fn grist_app_from_hwnd(hwnd: &mut HWND) -> &mut GristApp {
@@ -108,10 +108,18 @@ fn on_notification_icon(hwnd: HWND, wparam: WPARAM, lparam: LPARAM) -> eyre::Res
             let x = GET_X_LPARAM(wparam.0 as u32);
             let y = GET_Y_LPARAM(wparam.0 as u32);
             let hmenu = create_popup_menu()?;
-            let mf_byposition_string = MF_BYPOSITION | MF_STRING;
-            let _ = insert_menu(hmenu, 0, mf_byposition_string, MENU_PRINT_KEYS as usize, "Print Pressed Keys")?;
-            let _ = insert_menu(hmenu, 1, mf_byposition_string, MENU_RELOAD as usize, "Reload")?;
-            let _ = insert_menu(hmenu, 2, mf_byposition_string, MENU_EXIT as usize, "Exit")?;
+            let uflags = MF_BYPOSITION | MF_STRING;
+
+            let items = [
+                (MENU_PRINT_KEYS, "Pressed Keys"),
+                (MENU_RELOAD, "Reload"),
+                (MENU_HELP, "Help"),
+                (MENU_EXIT, "Exit"),
+            ];
+            for (uposition, (uidnewitem, lpnewitem)) in items.iter().enumerate() {
+                let _ = insert_menu(hmenu, uposition as u32, uflags, *uidnewitem, lpnewitem);
+            }
+
             let _ = set_foreground_window(hwnd)?;
             track_popup_menu(
                 hmenu,
@@ -142,6 +150,26 @@ fn on_wm_command(wparam: WPARAM, hwnd: &mut HWND) {
         }
         WPARAM(MENU_PRINT_KEYS) => {
             print_pressed_keys();
+        }
+        WPARAM(MENU_HELP) => {
+            let text = r"Actions:
+    ClearTop,
+    Maximize,
+    Minimize,
+    MonitorBottom,
+    MonitorBottomLeft,
+    MonitorBottomRight,
+    MonitorLeft,
+    MonitorRight,
+    MonitorTop,
+    MonitorTopLeft,
+    MonitorTopRight,
+    MoveNextMonitor,
+    MovePrevMonitor,
+    OnDesktop { x: i32, y: i32, w: i32, h: i32 },
+    OnMonitor { x: i32, y: i32, w: i32, h: i32 },
+            ";
+            message_box(*hwnd, text, "Grist Help", MB_OK);
         }
         _ => (),
     }
@@ -315,12 +343,15 @@ impl GristApp {
             return;
         }
 
-        if let Ok(hook) = set_windows_hook(
-            WH_KEYBOARD_LL,
-            Some(low_level_keyboard_proc),
-            unsafe { GetModuleHandleW(PCWSTR(std::ptr::null_mut())) },
-            0,
-        ) {
+        let hinstance = match get_module_handle(PCWSTR::default()) {
+            Ok(hinstance) => hinstance,
+            Err(_) => {
+                println!("Failed to get module handle");
+                return;
+            }
+        };
+
+        if let Ok(hook) = set_windows_hook(WH_KEYBOARD_LL, Some(low_level_keyboard_proc), hinstance, 0) {
             self.hook = hook;
             println!("Hooked keyboard events");
             return;
