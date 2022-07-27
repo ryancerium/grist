@@ -79,8 +79,8 @@ fn create_notification_icon(hwnd: HWND) -> eyre::Result<NOTIFYICONDATAW> {
     tooltip.resize(nid.szTip.len(), 0);
     nid.szTip.copy_from_slice(tooltip.as_slice());
 
-    let _ = shell_notify_icon(NIM_ADD, &mut nid)?;
-    let _ = shell_notify_icon(NIM_SETVERSION, &mut nid)?;
+    shell_notify_icon(NIM_ADD, &mut nid)?;
+    shell_notify_icon(NIM_SETVERSION, &mut nid)?;
 
     Ok(nid)
 }
@@ -127,7 +127,7 @@ fn on_notification_icon(hwnd: HWND, wparam: WPARAM, lparam: LPARAM) -> eyre::Res
                 let _ = insert_menu(hmenu, uposition as u32, uflags, *uidnewitem, lpnewitem);
             }
 
-            let _ = set_foreground_window(hwnd)?;
+            set_foreground_window(hwnd)?;
             track_popup_menu(
                 hmenu,
                 TPM_BOTTOMALIGN | TPM_RIGHTALIGN | TPM_LEFTBUTTON,

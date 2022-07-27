@@ -63,7 +63,7 @@ pub fn add_actions(actions: &mut Vec<HotkeyAction>) {
 }
 
 pub fn set_window_rect(hwnd: HWND, position: &RECT, flags: SET_WINDOW_POS_FLAGS) -> eyre::Result<()> {
-    let _ = show_window(hwnd, SW_RESTORE)?;
+    show_window(hwnd, SW_RESTORE)?;
 
     let margin = calculate_margin(hwnd)?;
     set_window_pos(
@@ -93,7 +93,7 @@ pub fn set_window_pos_action(workarea_to_window_pos: &WorkAreaToWindowPosFn) -> 
     let foreground_window = get_foreground_window()?;
     let monitor_info = get_monitor_info(monitor_from_window(foreground_window, MONITOR_DEFAULTTOPRIMARY)?)?;
     let new_window_pos = workarea_to_window_pos(&monitor_info.rcWork);
-    let _ = set_window_rect(foreground_window, &new_window_pos, SWP_NOZORDER)?;
+    set_window_rect(foreground_window, &new_window_pos, SWP_NOZORDER)?;
 
     if point_in_rect(&new_window_pos, &get_cursor_pos()?) {
         Ok(())
