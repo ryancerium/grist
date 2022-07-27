@@ -6,7 +6,7 @@ use crate::safe_win32::{
 };
 use crate::{hotkey_action, msg, print_pressed_keys, ACTIONS, DEBUG, PRESSED_KEYS};
 use num::FromPrimitive;
-use windows::core::PCWSTR;
+use windows::core::{HSTRING, PCWSTR};
 use windows::Win32::Foundation::{HINSTANCE, HWND, LPARAM, LRESULT, WPARAM};
 use windows::Win32::Graphics::Gdi::HBRUSH;
 use windows::Win32::UI::Shell::{
@@ -41,9 +41,16 @@ fn grist_app_from_hwnd(hwnd: &mut HWND) -> &mut GristApp {
 
 fn load_icon(name: &str) -> eyre::Result<HICON> {
     unsafe {
-        LoadImageW(HINSTANCE::default(), name, IMAGE_ICON, 0, 0, LR_LOADFROMFILE | LR_DEFAULTSIZE)
-            .map(|handle| HICON(handle.0))
-            .map_err(eyre::Report::from)
+        LoadImageW(
+            HINSTANCE::default(),
+            &HSTRING::from(name),
+            IMAGE_ICON,
+            0,
+            0,
+            LR_LOADFROMFILE | LR_DEFAULTSIZE,
+        )
+        .map(|handle| HICON(handle.0))
+        .map_err(eyre::Report::from)
     }
 }
 
@@ -343,7 +350,7 @@ impl GristApp {
             return;
         }
 
-        let hinstance = match get_module_handle(PCWSTR::default()) {
+        let hinstance = match get_module_handle(PCWSTR::null()) {
             Ok(hinstance) => hinstance,
             Err(_) => {
                 println!("Failed to get module handle");

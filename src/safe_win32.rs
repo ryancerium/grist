@@ -1,7 +1,7 @@
 use std::ffi::c_void;
 
 use eyre::eyre;
-use windows::core::PCWSTR;
+use windows::core::{HSTRING, PCWSTR};
 use windows::Win32::Foundation::{
     CloseHandle, GetLastError, SetLastError, BOOL, HANDLE, HINSTANCE, HWND, LPARAM, LRESULT, MAX_PATH, NO_ERROR, POINT,
     RECT, WPARAM,
@@ -260,14 +260,14 @@ pub fn insert_menu(
     lpnewitem: &str,
 ) -> eyre::Result<()> {
     unsafe {
-        InsertMenuW(hmenu, uposition, uflags, uidnewitem, lpnewitem)
+        InsertMenuW(hmenu, uposition, uflags, uidnewitem, &HSTRING::from(lpnewitem))
             .ok()
             .map_err(eyre::Report::from)
     }
 }
 
 pub fn message_box(hwnd: HWND, text: &str, caption: &str, utype: MESSAGEBOX_STYLE) -> MESSAGEBOX_RESULT {
-    unsafe { MessageBoxW(hwnd, text, caption, utype) }
+    unsafe { MessageBoxW(hwnd, &HSTRING::from(text), &HSTRING::from(caption), utype) }
 }
 
 pub fn monitor_from_window(hwnd: HWND, dwflags: MONITOR_FROM_FLAGS) -> eyre::Result<HMONITOR> {
@@ -283,7 +283,7 @@ pub fn open_process(
 }
 
 pub fn point_in_rect(rect: &RECT, point: &POINT) -> bool {
-    unsafe { PtInRect(rect, point).as_bool() }
+    unsafe { PtInRect(rect, *point).as_bool() }
 }
 
 pub fn post_message(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> BOOL {
