@@ -32,9 +32,11 @@ use windows::Win32::{
     UI::WindowsAndMessaging::{MB_OK, MSG},
 };
 
-static ACTIONS: Lazy<RwLock<Vec<HotkeyAction>>> = Lazy::new(RwLock::default);
-static DEBUG: Lazy<AtomicBool> = Lazy::new(AtomicBool::default);
+static ACTIONS: RwLock<Vec<HotkeyAction>> = RwLock::new(Vec::new());
+static DEBUG: AtomicBool = AtomicBool::new(false);
 static PRESSED_KEYS: Lazy<RwLock<BTreeSet<hotkey_action::VK>>> = Lazy::new(RwLock::default);
+// https://github.com/rust-lang/rust/issues/71835
+// static PRESSED_KEYS: RwLock<BTreeSet<hotkey_action::VK>> = RwLock::new(BTreeSet::new());
 
 fn print_pressed_keys() {
     let mut s = PRESSED_KEYS.read().unwrap().iter().fold(String::new(), |mut s, i| {
