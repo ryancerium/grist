@@ -135,7 +135,6 @@ fn on_notification_icon(hwnd: HWND, wparam: WPARAM, lparam: LPARAM) -> eyre::Res
                 y,
                 0, //nReserved, must be 0
                 hwnd,
-                None,
             );
             post_message(hwnd, WM_NULL, WPARAM(0), LPARAM(0));
             Ok(())

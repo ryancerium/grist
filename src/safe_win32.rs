@@ -119,15 +119,11 @@ pub fn dispatch_message(msg: &MSG) -> LRESULT {
 }
 
 pub fn dwm_get_window_attribute_extended_frame_bounds(hwnd: HWND) -> eyre::Result<RECT> {
-    let mut extended_frame_bounds = RECT::default();
     unsafe {
-        let success = DwmGetWindowAttribute(
-            hwnd,
-            DWMWA_EXTENDED_FRAME_BOUNDS,
-            &mut extended_frame_bounds as *mut RECT as *mut core::ffi::c_void,
-            std::mem::size_of_val(&extended_frame_bounds) as u32,
-        );
-        success.map(|_| extended_frame_bounds).map_err(|e| eyre!(e.message()))
+        let mut extended_frame_bounds = [0u8; std::mem::size_of::<RECT>()];
+        DwmGetWindowAttribute(hwnd, DWMWA_EXTENDED_FRAME_BOUNDS, &mut extended_frame_bounds)
+            .map(|_| core::mem::transmute(extended_frame_bounds))
+            .map_err(|e| eyre!(e.message()))
     }
 }
 
@@ -152,7 +148,7 @@ pub fn enum_display_monitors() -> eyre::Result<Vec<MONITORINFO>> {
     unsafe {
         EnumDisplayMonitors(
             HDC::default(),
-            std::ptr::null_mut(),
+            None,
             Some(enum_display_monitors_callback),
             LPARAM(&mut monitors as *mut Vec<MONITORINFO> as isize),
         )
@@ -248,7 +244,7 @@ pub struct ThreadProcessId {
 
 pub fn get_window_thread_process_id(hwnd: HWND) -> ThreadProcessId {
     let mut process_id = 0;
-    let thread_id = unsafe { GetWindowThreadProcessId(hwnd, &mut process_id) };
+    let thread_id = unsafe { GetWindowThreadProcessId(hwnd, Some(&mut process_id)) };
     ThreadProcessId { thread_id, process_id }
 }
 
@@ -365,22 +361,9 @@ pub fn track_popup_menu(
     y: i32,
     nreserved: i32,
     hwnd: HWND,
-    prcrect: Option<&RECT>,
 ) -> BOOL {
-    unsafe {
-        TrackPopupMenu(
-            hmenu,
-            uflags,
-            x,
-            y,
-            nreserved,
-            hwnd,
-            match prcrect {
-                Some(prcrect) => prcrect,
-                None => std::ptr::null(),
-            },
-        )
-    }
+    let rect = RECT::default();
+    unsafe { TrackPopupMenu(hmenu, uflags, x, y, nreserved, hwnd, &rect) }
 }
 
 pub fn translate_message(msg: &MSG) -> BOOL {
