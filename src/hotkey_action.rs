@@ -7,7 +7,7 @@ use windows::Win32::Foundation::RECT;
 
 use crate::{monitor, window_actions};
 
-#[derive(Clone, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Deserialize, Eq, PartialEq, Serialize)]
 pub struct HotkeyAction {
     pub name: String,
     pub action: Action,
@@ -253,7 +253,7 @@ impl Ord for VK {
     }
 }
 
-#[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
+#[derive(Clone, Serialize, Deserialize, Debug, Eq, PartialEq)]
 pub enum Action {
     ClearTop,
     Maximize,

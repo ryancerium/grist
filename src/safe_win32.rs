@@ -100,7 +100,7 @@ pub fn create_window(
             hwndparent,
             hmenu,
             hinstance,
-            lpparam,
+            Some(lpparam),
         )
         .ok()
     }
@@ -120,10 +120,15 @@ pub fn dispatch_message(msg: &MSG) -> LRESULT {
 
 pub fn dwm_get_window_attribute_extended_frame_bounds(hwnd: HWND) -> eyre::Result<RECT> {
     unsafe {
-        let mut extended_frame_bounds = [0u8; std::mem::size_of::<RECT>()];
-        DwmGetWindowAttribute(hwnd, DWMWA_EXTENDED_FRAME_BOUNDS, &mut extended_frame_bounds)
-            .map(|_| core::mem::transmute(extended_frame_bounds))
-            .map_err(|e| eyre!(e.message()))
+        let mut extended_frame_bounds = RECT::default();
+        DwmGetWindowAttribute(
+            hwnd,
+            DWMWA_EXTENDED_FRAME_BOUNDS,
+            &mut extended_frame_bounds as *mut RECT as *mut core::ffi::c_void,
+            std::mem::size_of::<RECT>() as u32,
+        )
+        .map(|_| extended_frame_bounds)
+        .map_err(|e| eyre!(e.message()))
     }
 }
 
@@ -362,8 +367,7 @@ pub fn track_popup_menu(
     nreserved: i32,
     hwnd: HWND,
 ) -> BOOL {
-    let rect = RECT::default();
-    unsafe { TrackPopupMenu(hmenu, uflags, x, y, nreserved, hwnd, &rect) }
+    unsafe { TrackPopupMenu(hmenu, uflags, x, y, nreserved, hwnd, None) }
 }
 
 pub fn translate_message(msg: &MSG) -> BOOL {
