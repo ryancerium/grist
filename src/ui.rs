@@ -241,7 +241,10 @@ extern "system" fn wndproc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM)
         WM_COMMAND => on_wm_command(wparam, &mut hwnd),
         WM_WTSSESSION_CHANGE => on_wtssession_change(&mut hwnd, msg, wparam, lparam),
         _ => {
-            if msg != WM_ENTERIDLE && lparam != LPARAM(WM_MOUSEMOVE as isize) {
+            if DEBUG.load(std::sync::atomic::Ordering::Relaxed)
+                && msg != WM_ENTERIDLE
+                && lparam != LPARAM(WM_MOUSEMOVE as isize)
+            {
                 println!("{:>30} w: 0x{:X} l: 0x{:X}", msg::msg_to_string(msg), wparam.0, lparam.0);
             }
         }

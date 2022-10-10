@@ -152,6 +152,7 @@ pub fn clear_topmost() -> eyre::Result<()> {
         .map(|_| ())
 }
 
+#[allow(dead_code)]
 pub fn print_window_flags() -> eyre::Result<()> {
     get_foreground_window()
         .and_then(|hwnd| {

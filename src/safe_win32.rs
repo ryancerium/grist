@@ -218,6 +218,7 @@ pub fn get_window_rect(hwnd: HWND) -> eyre::Result<RECT> {
     }
 }
 
+#[allow(dead_code)]
 pub fn get_window_text_length(hwnd: HWND) -> eyre::Result<i32> {
     unsafe {
         SetLastError(NO_ERROR);
@@ -235,6 +236,7 @@ pub fn get_window_text_length(hwnd: HWND) -> eyre::Result<i32> {
     }
 }
 
+#[allow(dead_code)]
 pub fn get_window_text(hwnd: HWND) -> eyre::Result<String> {
     let text_length = get_window_text_length(hwnd)? + 1;
     let mut chars = vec![0; text_length as usize];
