@@ -16,9 +16,9 @@ use windows::Win32::System::RemoteDesktop::{WTSRegisterSessionNotification, WTSU
 use windows::Win32::System::Threading::{OpenProcess, PROCESS_ACCESS_RIGHTS};
 use windows::Win32::UI::Shell::{Shell_NotifyIconW, NOTIFYICONDATAW, NOTIFY_ICON_MESSAGE};
 use windows::Win32::UI::WindowsAndMessaging::{
-    CallNextHookEx, CreatePopupMenu, CreateWindowExW, DefWindowProcW, DestroyIcon, DispatchMessageW, GetCursorPos,
-    GetForegroundWindow, GetMessageW, GetWindowLongPtrW, GetWindowRect, GetWindowTextLengthW, GetWindowTextW,
-    GetWindowThreadProcessId, InsertMenuW, MessageBoxW, PostMessageW, RegisterClassW, SetCursorPos,
+    CallNextHookEx, CreatePopupMenu, CreateWindowExW, DefWindowProcW, DestroyIcon, DestroyMenu, DispatchMessageW,
+    GetCursorPos, GetForegroundWindow, GetMessageW, GetWindowLongPtrW, GetWindowRect, GetWindowTextLengthW,
+    GetWindowTextW, GetWindowThreadProcessId, InsertMenuW, MessageBoxW, PostMessageW, RegisterClassW, SetCursorPos,
     SetForegroundWindow, SetWindowLongPtrW, SetWindowPos, SetWindowsHookExW, ShowWindow, ShowWindowAsync,
     TrackPopupMenu, TranslateMessage, UnhookWindowsHookEx, HHOOK, HICON, HMENU, HOOKPROC, MENU_ITEM_FLAGS,
     MESSAGEBOX_RESULT, MESSAGEBOX_STYLE, MSG, SET_WINDOW_POS_FLAGS, SHOW_WINDOW_CMD, TRACK_POPUP_MENU_FLAGS,
@@ -112,6 +112,10 @@ pub fn def_window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> 
 
 pub fn destroy_icon(hicon: HICON) -> eyre::Result<()> {
     unsafe { DestroyIcon(hicon).ok().map_err(eyre::Report::from) }
+}
+
+pub fn destroy_menu(hmenu: HMENU) -> eyre::Result<()> {
+    unsafe { DestroyMenu(hmenu).ok().map_err(eyre::Report::from) }
 }
 
 pub fn dispatch_message(msg: &MSG) -> LRESULT {

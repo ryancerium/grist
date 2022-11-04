@@ -1,5 +1,5 @@
 use crate::safe_win32::{
-    call_next_hook, create_popup_menu, create_window, def_window_proc, destroy_icon, get_module_handle,
+    call_next_hook, create_popup_menu, create_window, def_window_proc, destroy_icon, destroy_menu, get_module_handle,
     get_window_long_ptr, insert_menu, message_box, post_message, register_class, set_foreground_window,
     set_window_long_ptr, set_windows_hook, shell_notify_icon, track_popup_menu, unhook_windows_hook_ex,
     wts_register_session_notification, wts_unregister_session_notification,
@@ -15,12 +15,13 @@ use windows::Win32::UI::Shell::{
 };
 use windows::Win32::UI::WindowsAndMessaging::{
     LoadImageW, CS_HREDRAW, CS_OWNDC, CS_VREDRAW, CW_USEDEFAULT, HCURSOR, HHOOK, HICON, HMENU, IMAGE_ICON,
-    KBDLLHOOKSTRUCT, LR_DEFAULTSIZE, LR_LOADFROMFILE, MB_OK, MF_BYPOSITION, MF_STRING, TPM_BOTTOMALIGN, TPM_LEFTBUTTON,
-    TPM_RIGHTALIGN, WH_KEYBOARD_LL, WINDOW_EX_STYLE, WINDOW_LONG_PTR_INDEX, WM_APP, WM_COMMAND, WM_CREATE, WM_DESTROY,
-    WM_ENTERIDLE, WM_KEYDOWN, WM_KEYUP, WM_MOUSEMOVE, WM_NULL, WM_QUIT, WM_RBUTTONUP, WM_SYSKEYDOWN, WM_SYSKEYUP,
-    WM_WTSSESSION_CHANGE, WNDCLASSW, WS_OVERLAPPEDWINDOW, WTS_CONSOLE_CONNECT, WTS_CONSOLE_DISCONNECT,
-    WTS_REMOTE_CONNECT, WTS_REMOTE_DISCONNECT, WTS_SESSION_CREATE, WTS_SESSION_LOCK, WTS_SESSION_LOGOFF,
-    WTS_SESSION_LOGON, WTS_SESSION_REMOTE_CONTROL, WTS_SESSION_TERMINATE, WTS_SESSION_UNLOCK,
+    KBDLLHOOKSTRUCT, LR_DEFAULTSIZE, LR_LOADFROMFILE, MB_OK, MF_BYPOSITION, MF_CHECKED, MF_STRING, MF_UNCHECKED,
+    TPM_BOTTOMALIGN, TPM_LEFTBUTTON, TPM_RIGHTALIGN, WH_KEYBOARD_LL, WINDOW_EX_STYLE, WINDOW_LONG_PTR_INDEX, WM_APP,
+    WM_COMMAND, WM_CREATE, WM_DESTROY, WM_ENTERIDLE, WM_KEYDOWN, WM_KEYUP, WM_MOUSEMOVE, WM_NULL, WM_QUIT,
+    WM_RBUTTONUP, WM_SYSKEYDOWN, WM_SYSKEYUP, WM_WTSSESSION_CHANGE, WNDCLASSW, WS_OVERLAPPEDWINDOW,
+    WTS_CONSOLE_CONNECT, WTS_CONSOLE_DISCONNECT, WTS_REMOTE_CONNECT, WTS_REMOTE_DISCONNECT, WTS_SESSION_CREATE,
+    WTS_SESSION_LOCK, WTS_SESSION_LOGOFF, WTS_SESSION_LOGON, WTS_SESSION_REMOTE_CONTROL, WTS_SESSION_TERMINATE,
+    WTS_SESSION_UNLOCK,
 };
 
 const NOTIFY_FOR_THIS_SESSION: u32 = 0x00000000;
@@ -31,6 +32,8 @@ const MENU_EXIT: usize = 0x00;
 const MENU_RELOAD: usize = 0x01;
 const MENU_PRINT_KEYS: usize = 0x02;
 const MENU_HELP: usize = 0x03;
+const MENU_DEBUG: usize = 0x04;
+const MENU_ACTIONS: usize = 0x05;
 const GRIST_INDEX: WINDOW_LONG_PTR_INDEX = WINDOW_LONG_PTR_INDEX(0);
 
 fn grist_app_from_hwnd(hwnd: &mut HWND) -> &mut GristApp {
@@ -116,15 +119,22 @@ fn on_notification_icon(hwnd: HWND, wparam: WPARAM, lparam: LPARAM) -> eyre::Res
             let y = GET_Y_LPARAM(wparam.0 as u32);
             let hmenu = create_popup_menu()?;
             let uflags = MF_BYPOSITION | MF_STRING;
+            let debug_checked = if crate::DEBUG.load(core::sync::atomic::Ordering::Relaxed) {
+                MF_CHECKED
+            } else {
+                MF_UNCHECKED
+            };
 
             let items = [
-                (MENU_PRINT_KEYS, "Pressed Keys"),
-                (MENU_RELOAD, "Reload"),
-                (MENU_HELP, "Help"),
-                (MENU_EXIT, "Exit"),
+                (MENU_PRINT_KEYS, "Pressed Keys", uflags),
+                (MENU_RELOAD, "Reload", uflags),
+                (MENU_HELP, "Help", uflags),
+                (MENU_DEBUG, "Debug", uflags | debug_checked),
+                (MENU_ACTIONS, "Actions", uflags | debug_checked),
+                (MENU_EXIT, "Exit", uflags),
             ];
-            for (uposition, (uidnewitem, lpnewitem)) in items.iter().enumerate() {
-                let _ = insert_menu(hmenu, uposition as u32, uflags, *uidnewitem, lpnewitem);
+            for (uposition, (uidnewitem, lpnewitem, uflags)) in items.iter().enumerate() {
+                let _ = insert_menu(hmenu, uposition as u32, *uflags, *uidnewitem, lpnewitem);
             }
 
             set_foreground_window(hwnd)?;
@@ -136,6 +146,7 @@ fn on_notification_icon(hwnd: HWND, wparam: WPARAM, lparam: LPARAM) -> eyre::Res
                 0, //nReserved, must be 0
                 hwnd,
             );
+            destroy_menu(hmenu)?;
             post_message(hwnd, WM_NULL, WPARAM(0), LPARAM(0));
             Ok(())
         }
@@ -156,6 +167,21 @@ fn on_wm_command(wparam: WPARAM, hwnd: &mut HWND) {
         }
         WPARAM(MENU_PRINT_KEYS) => {
             print_pressed_keys();
+        }
+        WPARAM(MENU_DEBUG) => {
+            let debug = !crate::DEBUG.load(core::sync::atomic::Ordering::Relaxed);
+            println!("Setting debug to {}", debug);
+            crate::DEBUG.store(debug, core::sync::atomic::Ordering::Relaxed);
+        }
+        WPARAM(MENU_ACTIONS) => {
+            let actions = ACTIONS
+                .read()
+                .unwrap()
+                .iter()
+                .map(|action| format!("{:?}", action))
+                .collect::<Vec<String>>()
+                .join("\n");
+            message_box(*hwnd, actions.as_str(), "Grist Help", MB_OK);
         }
         WPARAM(MENU_HELP) => {
             let text = r"Actions:

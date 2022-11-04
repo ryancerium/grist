@@ -54,36 +54,10 @@ fn create_actions() -> Vec<HotkeyAction> {
 
     monitor::add_actions(&mut actions);
     window_actions::add_actions(&mut actions);
-
-    // actions.extend_from_slice(&[
-    //     HotkeyAction::new(
-    //         "Toggle Debug",
-    //         || {
-    //             let debug = !DEBUG.load(Ordering::Relaxed);
-    //             println!("Setting debug to {}", debug);
-    //             DEBUG.store(debug, Ordering::Relaxed);
-    //             Ok(())
-    //         },
-    //         &[VK::LeftWindows, VK::LeftShift, VK::D],
-    //     ),
-    //     HotkeyAction::new(
-    //         "Print Actions",
-    //         || {
-    //             for action in ACTIONS.read().unwrap().iter() {
-    //                 println!("{:?}", action);
-    //             }
-    //             Ok(())
-    //         },
-    //         &[VK::LeftWindows, VK::LeftShift, VK::OEM2], // Win+LeftShift+?
-    //     ),
-    // ]);
     actions
 }
 
 fn main() -> eyre::Result<()> {
-    println!("Win + LeftShift + D to toggle debug");
-    println!("Win + LeftShift + ? to view actions");
-
     {
         *ACTIONS.write().unwrap() = create_actions();
     }
