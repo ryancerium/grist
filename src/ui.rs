@@ -217,24 +217,36 @@ fn on_wtssession_change(hwnd: &mut HWND, _msg: u32, wparam: WPARAM, _lparam: LPA
         WTS_REMOTE_DISCONNECT => print_wts("WTS_REMOTE_DISCONNECT"),
         WTS_SESSION_LOGON => {
             grist_app_from_hwnd(hwnd).hook_keyboard();
-            print_wts("WTS_SESSION_LOGON")
+            // print_wts("WTS_SESSION_LOGON")
         }
         WTS_SESSION_LOGOFF => {
             grist_app_from_hwnd(hwnd).unhook_keyboard();
-            print_wts("WTS_SESSION_LOGOFF")
+            // print_wts("WTS_SESSION_LOGOFF")
         }
         WTS_SESSION_LOCK => {
             grist_app_from_hwnd(hwnd).unhook_keyboard();
-            print_wts("WTS_SESSION_LOCK")
+            // print_wts("WTS_SESSION_LOCK")
         }
         WTS_SESSION_UNLOCK => {
             grist_app_from_hwnd(hwnd).hook_keyboard();
-            print_wts("WTS_SESSION_UNLOCK")
+            // print_wts("WTS_SESSION_UNLOCK")
         }
-        WTS_SESSION_REMOTE_CONTROL => print_wts("WTS_SESSION_REMOTE_CONTROL"),
-        WTS_SESSION_CREATE => print_wts("WTS_SESSION_CREATE"),
-        WTS_SESSION_TERMINATE => print_wts("WTS_SESSION_TERMINATE"),
-        _ => print_wts("WTS Unknown wParam"),
+        WTS_SESSION_REMOTE_CONTROL => {
+            // print_wts("WTS_SESSION_REMOTE_CONTROL")
+            ()
+        }
+        WTS_SESSION_CREATE => {
+            // print_wts("WTS_SESSION_CREATE")
+            ()
+        }
+        WTS_SESSION_TERMINATE => {
+            //print_wts("WTS_SESSION_TERMINATE")
+            ()
+        }
+        _ => {
+            // print_wts("WTS Unknown wParam")
+            ()
+        }
     }
 }
 
@@ -369,7 +381,7 @@ impl GristApp {
 
         let _ = unhook_windows_hook_ex(self.hook);
         self.hook = HHOOK::default();
-        println!("Unhooked keyboard events");
+        // println!("Unhooked keyboard events");
     }
 
     pub fn hook_keyboard(&mut self) {
@@ -388,7 +400,7 @@ impl GristApp {
 
         if let Ok(hook) = set_windows_hook(WH_KEYBOARD_LL, Some(low_level_keyboard_proc), hinstance, 0) {
             self.hook = hook;
-            println!("Hooked keyboard events");
+            // println!("Hooked keyboard events");
             return;
         }
 
