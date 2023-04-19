@@ -7,7 +7,7 @@ use crate::safe_win32::{
 use crate::{hotkey_action, msg, print_pressed_keys, ACTIONS, DEBUG, PRESSED_KEYS};
 use num::FromPrimitive;
 use windows::core::{HSTRING, PCWSTR};
-use windows::Win32::Foundation::{HINSTANCE, HWND, LPARAM, LRESULT, WPARAM};
+use windows::Win32::Foundation::{HMODULE, HWND, LPARAM, LRESULT, WPARAM};
 use windows::Win32::Graphics::Gdi::HBRUSH;
 use windows::Win32::UI::Shell::{
     NIF_ICON, NIF_MESSAGE, NIF_TIP, NIM_ADD, NIM_DELETE, NIM_SETVERSION, NOTIFYICONDATAW, NOTIFYICONDATAW_0,
@@ -45,7 +45,7 @@ fn grist_app_from_hwnd(hwnd: &mut HWND) -> &mut GristApp {
 fn load_icon(name: &str) -> eyre::Result<HICON> {
     unsafe {
         LoadImageW(
-            HINSTANCE::default(),
+            HMODULE::default(),
             &HSTRING::from(name),
             IMAGE_ICON,
             0,

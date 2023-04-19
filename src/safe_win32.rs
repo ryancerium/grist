@@ -3,7 +3,7 @@ use std::ffi::c_void;
 use eyre::eyre;
 use windows::core::{HSTRING, PCWSTR};
 use windows::Win32::Foundation::{
-    CloseHandle, GetLastError, SetLastError, BOOL, HANDLE, HINSTANCE, HWND, LPARAM, LRESULT, MAX_PATH, NO_ERROR, POINT,
+    CloseHandle, GetLastError, SetLastError, BOOL, HANDLE, HMODULE, HWND, LPARAM, LRESULT, MAX_PATH, NO_ERROR, POINT,
     RECT, WPARAM,
 };
 use windows::Win32::Graphics::Dwm::{DwmGetWindowAttribute, DWMWA_EXTENDED_FRAME_BOUNDS};
@@ -11,7 +11,7 @@ use windows::Win32::Graphics::Gdi::{
     EnumDisplayMonitors, GetMonitorInfoW, MonitorFromWindow, PtInRect, HDC, HMONITOR, MONITORINFO, MONITOR_FROM_FLAGS,
 };
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
-use windows::Win32::System::ProcessStatus::K32GetModuleFileNameExW;
+use windows::Win32::System::ProcessStatus::GetModuleFileNameExW;
 use windows::Win32::System::RemoteDesktop::{WTSRegisterSessionNotification, WTSUnRegisterSessionNotification};
 use windows::Win32::System::Threading::{OpenProcess, PROCESS_ACCESS_RIGHTS};
 use windows::Win32::UI::Shell::{Shell_NotifyIconW, NOTIFYICONDATAW, NOTIFY_ICON_MESSAGE};
@@ -41,11 +41,11 @@ impl Win32Handle for HWND {
     }
 }
 
-impl Win32Handle for HINSTANCE {
-    fn ok(self) -> eyre::Result<HINSTANCE> {
+impl Win32Handle for HMODULE {
+    fn ok(self) -> eyre::Result<HMODULE> {
         match self {
-            HINSTANCE(0) => Err(eyre::Report::from(windows::core::Error::from_win32())),
-            HINSTANCE(h) => Ok(HINSTANCE(h)),
+            HMODULE(0) => Err(eyre::Report::from(windows::core::Error::from_win32())),
+            HMODULE(h) => Ok(HMODULE(h)),
         }
     }
 }
@@ -84,7 +84,7 @@ pub fn create_window(
     nheight: i32,
     hwndparent: HWND,
     hmenu: HMENU,
-    hinstance: HINSTANCE,
+    hinstance: HMODULE,
     lpparam: *mut c_void,
 ) -> eyre::Result<HWND> {
     unsafe {
@@ -180,13 +180,13 @@ pub fn get_message(msg: &mut MSG, hwnd: HWND, wmsgfiltermin: u32, wmsgfiltermax:
     unsafe { GetMessageW(msg, hwnd, wmsgfiltermin, wmsgfiltermax) }
 }
 
-pub fn get_module_handle(lpmodulename: PCWSTR) -> eyre::Result<HINSTANCE> {
+pub fn get_module_handle(lpmodulename: PCWSTR) -> eyre::Result<HMODULE> {
     unsafe { GetModuleHandleW(lpmodulename).map_err(|e| eyre!(e.message())) }
 }
 
 pub fn get_module_file_name(hprocess: HANDLE) -> eyre::Result<String> {
     let mut filename: [u16; MAX_PATH as usize] = [0; MAX_PATH as usize];
-    match unsafe { K32GetModuleFileNameExW(hprocess, HINSTANCE::default(), &mut filename) } {
+    match unsafe { GetModuleFileNameExW(hprocess, HMODULE::default(), &mut filename) } {
         0 => Err(std::io::Error::last_os_error().into()),
         _ => String::from_utf16(&filename).map_err(eyre::Report::from),
     }
@@ -346,7 +346,7 @@ pub fn set_window_pos(
 pub fn set_windows_hook(
     idhook: WINDOWS_HOOK_ID,
     lpfn: HOOKPROC,
-    hmod: HINSTANCE,
+    hmod: HMODULE,
     dwthreadid: u32,
 ) -> eyre::Result<HHOOK> {
     unsafe { SetWindowsHookExW(idhook, lpfn, hmod, dwthreadid).map_err(eyre::Report::from) }
