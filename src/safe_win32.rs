@@ -65,7 +65,7 @@ pub fn call_next_hook(hhk: HHOOK, ncode: i32, wparam: WPARAM, lparam: LPARAM) ->
 }
 
 pub fn close_handle(handle: HANDLE) -> eyre::Result<()> {
-    unsafe { CloseHandle(handle).ok().map_err(eyre::Report::from) }
+    unsafe { CloseHandle(handle).map_err(eyre::Report::from) }
 }
 
 pub fn create_popup_menu() -> eyre::Result<HMENU> {
@@ -111,11 +111,11 @@ pub fn def_window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> 
 }
 
 pub fn destroy_icon(hicon: HICON) -> eyre::Result<()> {
-    unsafe { DestroyIcon(hicon).ok().map_err(eyre::Report::from) }
+    unsafe { DestroyIcon(hicon).map_err(eyre::Report::from) }
 }
 
 pub fn destroy_menu(hmenu: HMENU) -> eyre::Result<()> {
-    unsafe { DestroyMenu(hmenu).ok().map_err(eyre::Report::from) }
+    unsafe { DestroyMenu(hmenu).map_err(eyre::Report::from) }
 }
 
 pub fn dispatch_message(msg: &MSG) -> LRESULT {
@@ -169,7 +169,7 @@ pub fn enum_display_monitors() -> eyre::Result<Vec<MONITORINFO>> {
 
 pub fn get_cursor_pos() -> eyre::Result<POINT> {
     let mut point = Default::default();
-    unsafe { GetCursorPos(&mut point).ok().map(|_| point).map_err(eyre::Report::from) }
+    unsafe { GetCursorPos(&mut point).map(|_| point).map_err(eyre::Report::from) }
 }
 
 pub fn get_foreground_window() -> eyre::Result<HWND> {
@@ -214,12 +214,7 @@ pub fn get_window_long_ptr(hwnd: HWND, nindex: WINDOW_LONG_PTR_INDEX) -> eyre::R
 
 pub fn get_window_rect(hwnd: HWND) -> eyre::Result<RECT> {
     let mut rect: RECT = RECT::default();
-    unsafe {
-        GetWindowRect(hwnd, &mut rect)
-            .ok()
-            .map(|_| rect)
-            .map_err(eyre::Report::from)
-    }
+    unsafe { GetWindowRect(hwnd, &mut rect).map(|_| rect).map_err(eyre::Report::from) }
 }
 
 #[allow(dead_code)]
@@ -232,11 +227,7 @@ pub fn get_window_text_length(hwnd: HWND) -> eyre::Result<i32> {
             return Ok(text_length);
         }
 
-        if GetLastError() == NO_ERROR {
-            return Ok(0);
-        }
-
-        Err(std::io::Error::last_os_error().into())
+        GetLastError().map(|_| 0).map_err(|e| e.into())
     }
 }
 
@@ -266,11 +257,7 @@ pub fn insert_menu(
     uidnewitem: usize,
     lpnewitem: &str,
 ) -> eyre::Result<()> {
-    unsafe {
-        InsertMenuW(hmenu, uposition, uflags, uidnewitem, &HSTRING::from(lpnewitem))
-            .ok()
-            .map_err(eyre::Report::from)
-    }
+    unsafe { InsertMenuW(hmenu, uposition, uflags, uidnewitem, &HSTRING::from(lpnewitem)).map_err(eyre::Report::from) }
 }
 
 pub fn message_box(hwnd: HWND, text: &str, caption: &str, utype: MESSAGEBOX_STYLE) -> MESSAGEBOX_RESULT {
@@ -293,8 +280,8 @@ pub fn point_in_rect(rect: &RECT, point: &POINT) -> bool {
     unsafe { PtInRect(rect, *point).as_bool() }
 }
 
-pub fn post_message(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> BOOL {
-    unsafe { PostMessageW(hwnd, msg, wparam, lparam) }
+pub fn post_message(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> eyre::Result<()> {
+    unsafe { PostMessageW(hwnd, msg, wparam, lparam).map_err(eyre::Report::from) }
 }
 
 pub fn register_class(wndclass: &WNDCLASSW) -> eyre::Result<()> {
@@ -307,7 +294,7 @@ pub fn register_class(wndclass: &WNDCLASSW) -> eyre::Result<()> {
 }
 
 pub fn set_cursor_pos(x: i32, y: i32) -> eyre::Result<()> {
-    unsafe { SetCursorPos(x, y).ok().map_err(eyre::Report::from) }
+    unsafe { SetCursorPos(x, y).map_err(eyre::Report::from) }
 }
 
 pub fn set_foreground_window(hwnd: HWND) -> eyre::Result<()> {
@@ -319,11 +306,12 @@ pub fn set_window_long_ptr(hwnd: HWND, nindex: WINDOW_LONG_PTR_INDEX, dwnewlong:
         SetLastError(NO_ERROR);
 
         let previous = SetWindowLongPtrW(hwnd, nindex, dwnewlong);
-        if previous != 0 || GetLastError() == NO_ERROR {
+        let last_error = GetLastError();
+        if previous != 0 || last_error.is_ok() {
             return Ok(previous);
         }
 
-        Err(std::io::Error::last_os_error().into())
+        last_error.map(|_| 0).map_err(|e| e.into())
     }
 }
 
@@ -336,11 +324,7 @@ pub fn set_window_pos(
     cy: i32,
     uflags: SET_WINDOW_POS_FLAGS,
 ) -> eyre::Result<()> {
-    unsafe {
-        SetWindowPos(hwnd, hwndinsertafter, x, y, cx, cy, uflags)
-            .ok()
-            .map_err(eyre::Report::from)
-    }
+    unsafe { SetWindowPos(hwnd, hwndinsertafter, x, y, cx, cy, uflags).map_err(eyre::Report::from) }
 }
 
 pub fn set_windows_hook(
@@ -372,8 +356,8 @@ pub fn track_popup_menu(
     y: i32,
     nreserved: i32,
     hwnd: HWND,
-) -> BOOL {
-    unsafe { TrackPopupMenu(hmenu, uflags, x, y, nreserved, hwnd, None) }
+) -> eyre::Result<()> {
+    unsafe { TrackPopupMenu(hmenu, uflags, x, y, nreserved, hwnd, None).map_err(eyre::Report::from) }
 }
 
 pub fn translate_message(msg: &MSG) -> BOOL {
@@ -381,17 +365,13 @@ pub fn translate_message(msg: &MSG) -> BOOL {
 }
 
 pub fn unhook_windows_hook_ex(hhk: HHOOK) -> eyre::Result<()> {
-    unsafe { UnhookWindowsHookEx(hhk).ok().map_err(eyre::Report::from) }
+    unsafe { UnhookWindowsHookEx(hhk).map_err(eyre::Report::from) }
 }
 
 pub fn wts_register_session_notification(hwnd: HWND, dwflags: u32) -> eyre::Result<()> {
-    unsafe {
-        WTSRegisterSessionNotification(hwnd, dwflags)
-            .ok()
-            .map_err(eyre::Report::from)
-    }
+    unsafe { WTSRegisterSessionNotification(hwnd, dwflags).map_err(eyre::Report::from) }
 }
 
 pub fn wts_unregister_session_notification(hwnd: HWND) -> eyre::Result<()> {
-    unsafe { WTSUnRegisterSessionNotification(hwnd).ok().map_err(eyre::Report::from) }
+    unsafe { WTSUnRegisterSessionNotification(hwnd).map_err(eyre::Report::from) }
 }

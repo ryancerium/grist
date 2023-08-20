@@ -1,4 +1,4 @@
-// #![windows_subsystem = "windows"]
+#![windows_subsystem = "windows"]
 // Uncomment the above line to make a windowed app instead of a console app
 
 // Declare the application's modules

@@ -7,7 +7,7 @@ use crate::safe_win32::{
 use crate::{hotkey_action, msg, print_pressed_keys, ACTIONS, DEBUG, PRESSED_KEYS};
 use num::FromPrimitive;
 use windows::core::{HSTRING, PCWSTR};
-use windows::Win32::Foundation::{HMODULE, HWND, LPARAM, LRESULT, WPARAM};
+use windows::Win32::Foundation::{HINSTANCE, HMODULE, HWND, LPARAM, LRESULT, WPARAM};
 use windows::Win32::Graphics::Gdi::HBRUSH;
 use windows::Win32::UI::Shell::{
     NIF_ICON, NIF_MESSAGE, NIF_TIP, NIM_ADD, NIM_DELETE, NIM_SETVERSION, NOTIFYICONDATAW, NOTIFYICONDATAW_0,
@@ -138,7 +138,7 @@ fn on_notification_icon(hwnd: HWND, wparam: WPARAM, lparam: LPARAM) -> eyre::Res
             }
 
             set_foreground_window(hwnd)?;
-            track_popup_menu(
+            let _ = track_popup_menu(
                 hmenu,
                 TPM_BOTTOMALIGN | TPM_RIGHTALIGN | TPM_LEFTBUTTON,
                 x,
@@ -147,7 +147,7 @@ fn on_notification_icon(hwnd: HWND, wparam: WPARAM, lparam: LPARAM) -> eyre::Res
                 hwnd,
             );
             destroy_menu(hmenu)?;
-            post_message(hwnd, WM_NULL, WPARAM(0), LPARAM(0));
+            let _ = post_message(hwnd, WM_NULL, WPARAM(0), LPARAM(0));
             Ok(())
         }
         _ => Ok(()),
@@ -160,7 +160,7 @@ fn on_wm_command(wparam: WPARAM, hwnd: &mut HWND) {
             if let Ok(ptr) = get_window_long_ptr(*hwnd, GRIST_INDEX) {
                 let _grist_app = unsafe { Box::from_raw(ptr as *mut GristApp) };
             }
-            post_message(*hwnd, WM_QUIT, WPARAM(0), LPARAM(0));
+            let _ = post_message(*hwnd, WM_QUIT, WPARAM(0), LPARAM(0));
         }
         WPARAM(MENU_RELOAD) => {
             grist_app_from_hwnd(hwnd).rehook_keyboard();
@@ -335,7 +335,9 @@ unsafe extern "system" fn low_level_keyboard_proc(n_code: i32, wparam: WPARAM, l
 pub fn create() -> eyre::Result<HWND> {
     let mut name: Vec<u16> = "Grist".encode_utf16().collect();
 
-    let hinstance = get_module_handle(PCWSTR(std::ptr::null_mut()))?;
+    let hmodule = get_module_handle(PCWSTR(std::ptr::null_mut()))?;
+    let hinstance: HINSTANCE = HINSTANCE(hmodule.0);
+
     let wnd_class = WNDCLASSW {
         style: CS_OWNDC | CS_HREDRAW | CS_VREDRAW,
         lpfnWndProc: Some(wndproc),
@@ -362,7 +364,7 @@ pub fn create() -> eyre::Result<HWND> {
         CW_USEDEFAULT,
         HWND::default(),
         HMENU::default(),
-        hinstance,
+        hmodule,
         std::ptr::null_mut(),
     )
 }
