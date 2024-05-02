@@ -227,7 +227,7 @@ pub fn get_window_text_length(hwnd: HWND) -> eyre::Result<i32> {
             return Ok(text_length);
         }
 
-        GetLastError().map(|_| 0).map_err(|e| e.into())
+        GetLastError().ok().map(|_| 0).map_err(|e| e.into())
     }
 }
 
@@ -311,7 +311,7 @@ pub fn set_window_long_ptr(hwnd: HWND, nindex: WINDOW_LONG_PTR_INDEX, dwnewlong:
             return Ok(previous);
         }
 
-        last_error.map(|_| 0).map_err(|e| e.into())
+        last_error.ok().map(|_| 0).map_err(|e| e.into())
     }
 }
 
@@ -357,7 +357,11 @@ pub fn track_popup_menu(
     nreserved: i32,
     hwnd: HWND,
 ) -> eyre::Result<()> {
-    unsafe { TrackPopupMenu(hmenu, uflags, x, y, nreserved, hwnd, None).map_err(eyre::Report::from) }
+    unsafe {
+        TrackPopupMenu(hmenu, uflags, x, y, nreserved, hwnd, None)
+            .ok()
+            .map_err(eyre::Report::from)
+    }
 }
 
 pub fn translate_message(msg: &MSG) -> BOOL {

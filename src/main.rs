@@ -69,7 +69,7 @@ fn main() -> eyre::Result<()> {
             BOOL(-1) => return Err(eyre!("GetMessageW() failed")),
             BOOL(0) => return Ok(()),
             _ => {
-                translate_message(&msg);
+                let _ = translate_message(&msg);
                 dispatch_message(&msg);
             }
         }

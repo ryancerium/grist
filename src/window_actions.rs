@@ -123,7 +123,7 @@ pub fn left() -> eyre::Result<()> {
 }
 
 pub fn right() -> eyre::Result<()> {
-    set_window_pos_action(&|r| RECT::from_points(r.top_right(), r.south()))
+    set_window_pos_action(&|r| RECT::from_points(r.north(), r.bottom_right()))
 }
 
 pub fn top() -> eyre::Result<()> {
@@ -131,7 +131,7 @@ pub fn top() -> eyre::Result<()> {
 }
 
 pub fn bottom() -> eyre::Result<()> {
-    set_window_pos_action(&|r| RECT::from_points(r.bottom_left(), r.east()))
+    set_window_pos_action(&|r| RECT::from_points(r.west(), r.bottom_right()))
 }
 
 pub fn maximize() -> eyre::Result<()> {
