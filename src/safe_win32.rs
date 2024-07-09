@@ -34,18 +34,18 @@ where
 
 impl Win32Handle for HWND {
     fn ok(self) -> eyre::Result<HWND> {
-        match self {
-            HWND(0) => Err(eyre::Report::from(windows::core::Error::from_win32())),
-            HWND(h) => Ok(HWND(h)),
+        match self.is_invalid() {
+            true => Err(eyre::Report::from(windows::core::Error::from_win32())),
+            false => Ok(self),
         }
     }
 }
 
 impl Win32Handle for HMODULE {
     fn ok(self) -> eyre::Result<HMODULE> {
-        match self {
-            HMODULE(0) => Err(eyre::Report::from(windows::core::Error::from_win32())),
-            HMODULE(h) => Ok(HMODULE(h)),
+        match self.is_invalid() {
+            false => Err(eyre::Report::from(windows::core::Error::from_win32())),
+            true => Ok(self),
         }
     }
 }
@@ -102,7 +102,7 @@ pub fn create_window(
             hinstance,
             Some(lpparam),
         )
-        .ok()
+        .map_err(|e| e.into())
     }
 }
 
