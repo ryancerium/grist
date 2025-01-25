@@ -3,8 +3,8 @@ use std::ffi::c_void;
 use eyre::eyre;
 use windows::core::{HSTRING, PCWSTR};
 use windows::Win32::Foundation::{
-    CloseHandle, GetLastError, SetLastError, BOOL, HANDLE, HMODULE, HWND, LPARAM, LRESULT, MAX_PATH, NO_ERROR, POINT,
-    RECT, WPARAM,
+    CloseHandle, GetLastError, SetLastError, BOOL, HANDLE, HINSTANCE, HMODULE, HWND, LPARAM, LRESULT, MAX_PATH,
+    NO_ERROR, POINT, RECT, WPARAM,
 };
 use windows::Win32::Graphics::Dwm::{DwmGetWindowAttribute, DWMWA_EXTENDED_FRAME_BOUNDS};
 use windows::Win32::Graphics::Gdi::{
@@ -60,7 +60,7 @@ impl Win32Handle for HMONITOR {
     }
 }
 
-pub fn call_next_hook(hhk: HHOOK, ncode: i32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
+pub fn call_next_hook(hhk: Option<HHOOK>, ncode: i32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
     unsafe { CallNextHookEx(hhk, ncode, wparam, lparam) }
 }
 
@@ -82,9 +82,9 @@ pub fn create_window(
     y: i32,
     nwidth: i32,
     nheight: i32,
-    hwndparent: HWND,
-    hmenu: HMENU,
-    hinstance: HMODULE,
+    hwndparent: Option<HWND>,
+    hmenu: Option<HMENU>,
+    hinstance: Option<HINSTANCE>,
     lpparam: *mut c_void,
 ) -> eyre::Result<HWND> {
     unsafe {
@@ -156,7 +156,7 @@ pub fn enum_display_monitors() -> eyre::Result<Vec<MONITORINFO>> {
     let mut monitors = Vec::new();
     unsafe {
         EnumDisplayMonitors(
-            HDC::default(),
+            Some(HDC::default()),
             None,
             Some(enum_display_monitors_callback),
             LPARAM(&mut monitors as *mut Vec<MONITORINFO> as isize),
@@ -176,7 +176,7 @@ pub fn get_foreground_window() -> eyre::Result<HWND> {
     unsafe { GetForegroundWindow().ok() }
 }
 
-pub fn get_message(msg: &mut MSG, hwnd: HWND, wmsgfiltermin: u32, wmsgfiltermax: u32) -> BOOL {
+pub fn get_message(msg: &mut MSG, hwnd: Option<HWND>, wmsgfiltermin: u32, wmsgfiltermax: u32) -> BOOL {
     unsafe { GetMessageW(msg, hwnd, wmsgfiltermin, wmsgfiltermax) }
 }
 
@@ -184,9 +184,9 @@ pub fn get_module_handle(lpmodulename: PCWSTR) -> eyre::Result<HMODULE> {
     unsafe { GetModuleHandleW(lpmodulename).map_err(|e| eyre!(e.message())) }
 }
 
-pub fn get_module_file_name(hprocess: HANDLE) -> eyre::Result<String> {
+pub fn get_module_file_name(hprocess: Option<HANDLE>) -> eyre::Result<String> {
     let mut filename: [u16; MAX_PATH as usize] = [0; MAX_PATH as usize];
-    match unsafe { GetModuleFileNameExW(hprocess, HMODULE::default(), &mut filename) } {
+    match unsafe { GetModuleFileNameExW(hprocess, Some(HMODULE::default()), &mut filename) } {
         0 => Err(std::io::Error::last_os_error().into()),
         _ => String::from_utf16(&filename).map_err(eyre::Report::from),
     }
@@ -217,7 +217,6 @@ pub fn get_window_rect(hwnd: HWND) -> eyre::Result<RECT> {
     unsafe { GetWindowRect(hwnd, &mut rect).map(|_| rect).map_err(eyre::Report::from) }
 }
 
-#[allow(dead_code)]
 pub fn get_window_text_length(hwnd: HWND) -> eyre::Result<i32> {
     unsafe {
         SetLastError(NO_ERROR);
@@ -231,7 +230,6 @@ pub fn get_window_text_length(hwnd: HWND) -> eyre::Result<i32> {
     }
 }
 
-#[allow(dead_code)]
 pub fn get_window_text(hwnd: HWND) -> eyre::Result<String> {
     let text_length = get_window_text_length(hwnd)? + 1;
     let mut chars = vec![0; text_length as usize];
@@ -239,6 +237,7 @@ pub fn get_window_text(hwnd: HWND) -> eyre::Result<String> {
     String::from_utf16(chars.as_slice()).map_err(eyre::Report::from)
 }
 
+#[allow(dead_code)]
 pub struct ThreadProcessId {
     pub thread_id: u32,
     pub process_id: u32,
@@ -260,7 +259,7 @@ pub fn insert_menu(
     unsafe { InsertMenuW(hmenu, uposition, uflags, uidnewitem, &HSTRING::from(lpnewitem)).map_err(eyre::Report::from) }
 }
 
-pub fn message_box(hwnd: HWND, text: &str, caption: &str, utype: MESSAGEBOX_STYLE) -> MESSAGEBOX_RESULT {
+pub fn message_box(hwnd: Option<HWND>, text: &str, caption: &str, utype: MESSAGEBOX_STYLE) -> MESSAGEBOX_RESULT {
     unsafe { MessageBoxW(hwnd, &HSTRING::from(text), &HSTRING::from(caption), utype) }
 }
 
@@ -280,7 +279,7 @@ pub fn point_in_rect(rect: &RECT, point: &POINT) -> bool {
     unsafe { PtInRect(rect, *point).as_bool() }
 }
 
-pub fn post_message(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> eyre::Result<()> {
+pub fn post_message(hwnd: Option<HWND>, msg: u32, wparam: WPARAM, lparam: LPARAM) -> eyre::Result<()> {
     unsafe { PostMessageW(hwnd, msg, wparam, lparam).map_err(eyre::Report::from) }
 }
 
@@ -317,7 +316,7 @@ pub fn set_window_long_ptr(hwnd: HWND, nindex: WINDOW_LONG_PTR_INDEX, dwnewlong:
 
 pub fn set_window_pos(
     hwnd: HWND,
-    hwndinsertafter: HWND,
+    hwndinsertafter: Option<HWND>,
     x: i32,
     y: i32,
     cx: i32,
@@ -330,10 +329,10 @@ pub fn set_window_pos(
 pub fn set_windows_hook(
     idhook: WINDOWS_HOOK_ID,
     lpfn: HOOKPROC,
-    hmod: HMODULE,
+    hinstance: Option<HINSTANCE>,
     dwthreadid: u32,
 ) -> eyre::Result<HHOOK> {
-    unsafe { SetWindowsHookExW(idhook, lpfn, hmod, dwthreadid).map_err(eyre::Report::from) }
+    unsafe { SetWindowsHookExW(idhook, lpfn, hinstance, dwthreadid).map_err(eyre::Report::from) }
 }
 
 pub fn shell_notify_icon(dwmessage: NOTIFY_ICON_MESSAGE, lpdata: &mut NOTIFYICONDATAW) -> eyre::Result<()> {
@@ -354,7 +353,7 @@ pub fn track_popup_menu(
     uflags: TRACK_POPUP_MENU_FLAGS,
     x: i32,
     y: i32,
-    nreserved: i32,
+    nreserved: Option<i32>,
     hwnd: HWND,
 ) -> eyre::Result<()> {
     unsafe {

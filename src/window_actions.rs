@@ -23,7 +23,7 @@ type WorkAreaToWindowPosFn = dyn Fn(&RECT) -> RECT;
 fn get_window_executable(hwnd: HWND) -> eyre::Result<String> {
     let tpid = get_window_thread_process_id(hwnd);
     let process_handle = open_process(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, false, tpid.process_id)?;
-    let filename = get_module_file_name(process_handle);
+    let filename = get_module_file_name(Some(process_handle));
     let _ = close_handle(process_handle);
     filename
 }
@@ -68,7 +68,7 @@ pub fn set_window_rect(hwnd: HWND, position: &RECT, flags: SET_WINDOW_POS_FLAGS)
     let margin = calculate_margin(hwnd)?;
     set_window_pos(
         hwnd,
-        HWND::default(),
+        Some(HWND::default()),
         position.left + margin.left,
         position.top + margin.top,
         position.width() + margin.right - margin.left,
@@ -148,7 +148,7 @@ pub fn minimize() -> eyre::Result<()> {
 
 pub fn clear_topmost() -> eyre::Result<()> {
     get_foreground_window()
-        .and_then(|hwnd| set_window_pos(hwnd, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE))
+        .and_then(|hwnd| set_window_pos(hwnd, Some(HWND_NOTOPMOST), 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE))
         .map(|_| ())
 }
 

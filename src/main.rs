@@ -46,7 +46,7 @@ fn print_pressed_keys() {
     if s.is_empty() {
         s = String::from("No keys currently pressed");
     }
-    message_box(HWND::default(), s.as_str(), "Pressed Keys", MB_OK);
+    message_box(Some(HWND::default()), s.as_str(), "Pressed Keys", MB_OK);
 }
 
 fn create_actions() -> Vec<HotkeyAction> {
@@ -65,7 +65,7 @@ fn main() -> eyre::Result<()> {
     let hwnd = ui::create()?;
     let mut msg = MSG::default();
     loop {
-        match get_message(&mut msg, hwnd, 0, 0) {
+        match get_message(&mut msg, Some(hwnd), 0, 0) {
             BOOL(-1) => return Err(eyre!("GetMessageW() failed")),
             BOOL(0) => return Ok(()),
             _ => {
