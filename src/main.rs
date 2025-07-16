@@ -19,7 +19,7 @@ mod macros;
 extern crate num_derive;
 
 use eyre::eyre;
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 
 // Import crate members
 use crate::safe_win32::{dispatch_message, get_message, message_box, translate_message};
@@ -37,7 +37,7 @@ use windows::{
 
 static ACTIONS: RwLock<Vec<HotkeyAction>> = RwLock::new(Vec::new());
 static DEBUG: AtomicBool = AtomicBool::new(false);
-static PRESSED_KEYS: Lazy<RwLock<BTreeSet<hotkey_action::VK>>> = Lazy::new(RwLock::default);
+static PRESSED_KEYS: LazyLock<RwLock<BTreeSet<hotkey_action::VK>>> = LazyLock::new(RwLock::default);
 // https://github.com/rust-lang/rust/issues/71835
 // static PRESSED_KEYS: RwLock<BTreeSet<hotkey_action::VK>> = RwLock::new(BTreeSet::new());
 

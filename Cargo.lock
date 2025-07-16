@@ -32,7 +32,6 @@ dependencies = [
  "num",
  "num-derive",
  "num-traits",
- "once_cell",
  "serde",
  "serde_yaml",
  "windows",
