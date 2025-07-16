@@ -1,10 +1,10 @@
 use std::ffi::c_void;
 
 use eyre::eyre;
-use windows::core::{HSTRING, PCWSTR};
+use windows::core::{BOOL, HSTRING, PCWSTR};
 use windows::Win32::Foundation::{
-    CloseHandle, GetLastError, SetLastError, BOOL, HANDLE, HINSTANCE, HMODULE, HWND, LPARAM, LRESULT, MAX_PATH,
-    NO_ERROR, POINT, RECT, WPARAM,
+    CloseHandle, GetLastError, SetLastError, HANDLE, HINSTANCE, HMODULE, HWND, LPARAM, LRESULT, MAX_PATH, NO_ERROR,
+    POINT, RECT, WPARAM,
 };
 use windows::Win32::Graphics::Dwm::{DwmGetWindowAttribute, DWMWA_EXTENDED_FRAME_BOUNDS};
 use windows::Win32::Graphics::Gdi::{

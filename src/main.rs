@@ -27,9 +27,12 @@ use hotkey_action::HotkeyAction;
 use std::collections::BTreeSet;
 use std::sync::atomic::AtomicBool;
 use std::sync::RwLock;
-use windows::Win32::{
-    Foundation::{BOOL, HWND},
-    UI::WindowsAndMessaging::{MB_OK, MSG},
+use windows::{
+    core::BOOL,
+    Win32::{
+        Foundation::HWND,
+        UI::WindowsAndMessaging::{MB_OK, MSG},
+    },
 };
 
 static ACTIONS: RwLock<Vec<HotkeyAction>> = RwLock::new(Vec::new());
