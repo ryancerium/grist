@@ -35,7 +35,7 @@ where
 impl Win32Handle for HWND {
     fn ok(self) -> eyre::Result<HWND> {
         match self.is_invalid() {
-            true => Err(eyre::Report::from(windows::core::Error::from_win32())),
+            true => Err(eyre::Report::from(windows::core::Error::from_thread())),
             false => Ok(self),
         }
     }
@@ -44,7 +44,7 @@ impl Win32Handle for HWND {
 impl Win32Handle for HMODULE {
     fn ok(self) -> eyre::Result<HMODULE> {
         match self.is_invalid() {
-            false => Err(eyre::Report::from(windows::core::Error::from_win32())),
+            false => Err(eyre::Report::from(windows::core::Error::from_thread())),
             true => Ok(self),
         }
     }
@@ -53,7 +53,7 @@ impl Win32Handle for HMODULE {
 impl Win32Handle for HMONITOR {
     fn ok(self) -> eyre::Result<HMONITOR> {
         if self.is_invalid() {
-            Err(eyre::Report::from(windows::core::Error::from_win32()))
+            Err(eyre::Report::from(windows::core::Error::from_thread()))
         } else {
             Ok(self)
         }

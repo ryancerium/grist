@@ -16,11 +16,11 @@ num-traits = "0.2.18"
 serde_yaml = "0.9.34-deprecated"
 
 [dependencies.serde]
-version = "1.0.217"
+version = "1.0.228"
 features = ["derive"]
 
 [dependencies.windows]
-version = "0.61.3"
+version = "0.62.2"
 features = [
     "Win32_System_Diagnostics_Debug",
     "Win32_Foundation",
