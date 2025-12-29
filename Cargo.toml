@@ -13,7 +13,7 @@ eyre = "0.6.12"
 num = "0.4.3"
 num-derive = "0.4.2"
 num-traits = "0.2.18"
-serde_yaml = "0.9.34-deprecated"
+serde-saphyr = "0.0.12"
 
 [dependencies.serde]
 version = "1.0.228"
